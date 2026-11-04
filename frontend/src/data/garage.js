@@ -9,6 +9,28 @@ export const contactInfo = {
   hours: ["Lundi – vendredi, 8h00 – 17h30", "Samedi, 8h00 – 12h00"],
 }
 
+// Horaires d'ouverture par jour (0 = dimanche) : [heure d'ouverture, heure de fermeture]. Absent = fermé.
+export const openingHours = {
+  1: [8, 17.5],
+  2: [8, 17.5],
+  3: [8, 17.5],
+  4: [8, 17.5],
+  5: [8, 17.5],
+  6: [8, 12],
+}
+
+// Photo affichée pour chaque modèle enregistré par un client (les noms suivent l'énumération de l'API)
+export const modelImages = {
+  Defender: "/images/defender.jpg",
+  Discovery: "/images/discovery.jpg",
+  "Discovery Sport": "/images/discovery-sport.jpg",
+  "Range Rover": "/images/range-rover-vogue.jpg",
+  "Range Rover Sport": "/images/range-rover-sport.jpg",
+  "Range Rover Velar": "/images/range-rover-velar.jpg",
+  "Range Rover Evoque": "/images/range-rover-evoque.jpg",
+  Freelander: "/images/freelander.jpg",
+}
+
 export const services = [
   {
     title: "Entretien et révision",

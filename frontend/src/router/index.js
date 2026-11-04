@@ -4,6 +4,12 @@ import { useUiStore } from "@/stores/ui"
 
 const router = createRouter({
   history: createWebHistory(),
+  // Nouvelle page : on repart en haut. Retour arrière : position retrouvée. Ancres (#services) : défilement doux.
+  scrollBehavior(to, _from, saved) {
+    if (saved) return saved
+    if (to.hash) return { el: to.hash, top: 64, behavior: "smooth" }
+    return { top: 0, behavior: "instant" }
+  },
   routes: [
     { path: "/", name: "home", component: () => import("@/views/HomeView.vue") },
     // Espace client : mes véhicules et mes rendez-vous

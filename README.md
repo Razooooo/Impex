@@ -41,10 +41,14 @@ Application web de prise de rendez-vous pour **IMPEX**, garage spécialisé Land
 | Page de présentation IMPEX                        | Terminé     |
 | Connexion / inscription (fenêtre unique)          | Terminé     |
 | API complète (auth, services, véhicules, rdv)     | Terminé     |
-| Planning admin avec assignation et temps estimé   | Basique     |
+| Espace admin : demandes, assignation, durée, démarrage / fin | Terminé |
+| Espace admin : équipe (mécaniciens, administrateurs) | Terminé  |
+| Espace admin : gestion des services (ajout, modification, activation) | Terminé |
+| Interdiction des chevauchements d'un même mécanicien | Terminé |
 | Tâches du mécanicien (démarrer / terminer)        | Basique     |
-| Espace client : liste des rendez-vous             | Basique     |
-| Espace client : formulaire de rendez-vous, véhicules | À faire  |
+| Espace client : véhicules, rendez-vous, annulation | Terminé    |
+| Réservation par créneaux selon les horaires du garage | Terminé (côté client) |
+| Choix guidé de la prestation (zones, « Je ne sais pas » avec symptômes) | Terminé |
 
 ## Démarrage rapide
 
@@ -73,7 +77,7 @@ docker compose up -d      # démarrer en arrière-plan
 docker compose down       # arrêter (les données sont conservées)
 ```
 
-Le code est monté en volume : le front se recharge à chaque modification et le back redémarre via `nodemon`. Un `--build` n'est nécessaire que si un `Dockerfile` ou les dépendances changent :
+Le code est monté en volume : le front se recharge à chaque modification et le back redémarre via `nodemon` (lancé avec `-L`, nécessaire pour détecter les changements sous Windows). Un `--build` n'est nécessaire que si un `Dockerfile` ou les dépendances changent :
 
 ```bash
 docker compose up -d --build -V
@@ -139,17 +143,20 @@ Toutes les routes sont préfixées par `/api`. Les routes protégées attendent 
 | POST    | `/auth/register`               | public (crée toujours un `client`)       |
 | POST    | `/auth/login`                  | public                                   |
 | GET     | `/auth/me`                     | connecté                                 |
-| GET     | `/services`                    | public                                   |
+| GET     | `/services`                    | public (services actifs)                 |
+| GET     | `/services/all`                | admin (y compris les services désactivés) |
 | POST    | `/services`                    | admin                                    |
 | PATCH   | `/services/:id`                | admin                                    |
 | GET     | `/vehicles`                    | client                                   |
 | POST    | `/vehicles`                    | client                                   |
+| PATCH   | `/vehicles/:id`                | client                                   |
 | DELETE  | `/vehicles/:id`                | client                                   |
 | GET     | `/appointments`                | selon le rôle (client : les siens, mécano : les siens assignés, admin : tous) |
 | POST    | `/appointments`                | client                                   |
 | PATCH   | `/appointments/:id/assign`     | admin                                    |
 | PATCH   | `/appointments/:id/status`     | admin, mécano assigné, client (annulation) |
 | GET     | `/users/mechanics`             | admin                                    |
+| GET     | `/users/staff`                 | admin (mécaniciens et administrateurs)   |
 | POST    | `/users/staff`                 | admin (crée un mécano ou un admin)       |
 
 ## Configuration
@@ -202,15 +209,17 @@ La base n'apparaît qu'après la première écriture (lancer le seed ou créer u
 ## Feuille de route
 
 **Priorité 1 : rendre la réservation utilisable**
-- [ ] Espace client : gestion des véhicules (ajout, liste, suppression)
-- [ ] Espace client : formulaire de rendez-vous (véhicule, prestation, date, description du problème)
-- [ ] Annulation d'un rendez-vous depuis l'espace client
+- [x] Espace client : gestion des véhicules (ajout, liste, suppression)
+- [x] Espace client : formulaire de rendez-vous (véhicule, prestation, date, description du problème)
+- [x] Annulation d'un rendez-vous depuis l'espace client
 
 **Priorité 2 : planification côté garage**
-- [ ] Horaires d'ouverture et créneaux disponibles
-- [ ] Éviter les chevauchements d'un même mécanicien
+- [ ] Créneaux réellement disponibles (le formulaire propose pour l'instant tous les créneaux des horaires d'ouverture, sans tenir compte des rendez-vous déjà pris)
+- [x] Éviter les chevauchements d'un même mécanicien (refusés à l'assignation)
+- [x] Gestion des services et du personnel depuis l'espace admin
+- [ ] Refaire l'espace mécanicien dans le même style (tâches du jour, notes)
 - [ ] Vue calendrier du planning admin
-- [ ] Gestion des services et du personnel depuis l'espace admin
+- [ ] Désactiver ou supprimer un membre de l'équipe
 - [ ] Temps réel passé par rapport au temps estimé
 
 **Priorité 3 : suivi et communication**

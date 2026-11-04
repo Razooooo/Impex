@@ -47,25 +47,55 @@ export const listAppointments = async (req, res) => {
 	res.json({ success: true, appointments });
 };
 
-// Admin : assigne un mécano et ajuste le temps estimé
+// Cherche une intervention déjà confirmée ou en cours du mécanicien qui chevauche [start, start + minutes]
+async function findConflict(mechanicId, start, minutes, excludeId) {
+	const end = new Date(start.getTime() + minutes * 60000);
+	const candidates = await Appointment.find({
+		assignedMechanic: mechanicId,
+		_id: { $ne: excludeId },
+		status: { $in: ["confirmed", "in_progress"] },
+		scheduledAt: { $lt: end, $gte: new Date(start.getTime() - 24 * 3600 * 1000) },
+	}).populate("service", "name");
+	return candidates.find((c) => c.scheduledAt.getTime() + (c.estimatedMinutes || 0) * 60000 > start.getTime());
+}
+
+// Admin : assigne (ou réassigne) un mécano et ajuste le temps estimé.
+// Un rendez-vous en attente passe à « confirmé » dès qu'un mécano lui est assigné.
 export const assignAppointment = async (req, res) => {
 	const { mechanicId, estimatedMinutes } = req.body;
 
-	const update = {};
-	if (mechanicId) {
-		const mechanic = await User.findOne({ _id: mechanicId, role: "mecano" });
-		if (!mechanic) return res.status(404).json({ success: false, message: "Mécanicien introuvable." });
-		update.assignedMechanic = mechanic._id;
-		update.status = "confirmed";
-	}
-	if (estimatedMinutes) update.estimatedMinutes = estimatedMinutes;
-
-	const appointment = await Appointment.findByIdAndUpdate(req.params.id, update, {
-		new: true,
-		runValidators: true,
-	}).populate(populate);
+	const appointment = await Appointment.findById(req.params.id);
 	if (!appointment) return res.status(404).json({ success: false, message: "Rendez-vous introuvable." });
-	res.json({ success: true, appointment });
+	if (["done", "cancelled"].includes(appointment.status)) {
+		return res.status(400).json({ success: false, message: "Ce rendez-vous est terminé ou annulé." });
+	}
+
+	const minutes = estimatedMinutes ? Number(estimatedMinutes) : appointment.estimatedMinutes;
+	if (!Number.isFinite(minutes) || minutes < 5) {
+		return res.status(400).json({ success: false, message: "La durée estimée doit être d'au moins 5 minutes." });
+	}
+
+	const targetId = mechanicId || appointment.assignedMechanic;
+	if (targetId) {
+		const mechanic = await User.findOne({ _id: targetId, role: "mecano" });
+		if (!mechanic) return res.status(404).json({ success: false, message: "Mécanicien introuvable." });
+
+		const conflict = await findConflict(mechanic._id, appointment.scheduledAt, minutes, appointment._id);
+		if (conflict) {
+			return res.status(409).json({
+				success: false,
+				message: `${mechanic.firstName} ${mechanic.lastName} a déjà une intervention sur ce créneau (${conflict.service?.name}). Choisissez un autre mécanicien ou ajustez la durée.`,
+			});
+		}
+		if (mechanicId) {
+			appointment.assignedMechanic = mechanic._id;
+			if (appointment.status === "pending") appointment.status = "confirmed";
+		}
+	}
+
+	appointment.estimatedMinutes = minutes;
+	await appointment.save();
+	res.json({ success: true, appointment: await appointment.populate(populate) });
 };
 
 // Admin : tout changement — Mécano : seulement ses tâches — Client : annulation de son rdv
@@ -84,6 +114,16 @@ export const updateStatus = async (req, res) => {
 		(role === "mecano" && String(appointment.assignedMechanic) === id) ||
 		(role === "client" && String(appointment.customer) === id && status === "cancelled");
 	if (!allowed) return res.status(403).json({ success: false, message: "Action non autorisée." });
+
+	if (role === "client" && ["in_progress", "done", "cancelled"].includes(appointment.status)) {
+		return res
+			.status(400)
+			.json({ success: false, message: "Ce rendez-vous ne peut plus être annulé. Contactez le garage." });
+	}
+
+	if (status === "in_progress" && !appointment.assignedMechanic) {
+		return res.status(400).json({ success: false, message: "Assignez d'abord un mécanicien à ce rendez-vous." });
+	}
 
 	appointment.status = status;
 	if (mechanicNotes !== undefined && role !== "client") appointment.mechanicNotes = mechanicNotes;

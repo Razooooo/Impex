@@ -20,6 +20,8 @@ const serviceSchema = new mongoose.Schema(
 		category: { type: String, enum: SERVICE_CATEGORIES, default: "autre" },
 		estimatedMinutes: { type: Number, required: true, min: 5 },
 		active: { type: Boolean, default: true },
+		// Prestation proposée quand le client ne sait pas d'où vient le problème (un seul service à la fois)
+		forUnknownProblem: { type: Boolean, default: false },
 	},
 	{ timestamps: true },
 );

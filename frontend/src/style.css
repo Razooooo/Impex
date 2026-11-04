@@ -22,6 +22,11 @@ body {
   color: var(--color-ink);
 }
 
+/* Champ de formulaire commun */
+.field {
+  @apply w-full rounded-lg border border-ink/20 bg-white/70 px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-ink/35 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent;
+}
+
 /* ---- Apparition au scroll (directive v-reveal) ---- */
 .reveal {
   opacity: 0;

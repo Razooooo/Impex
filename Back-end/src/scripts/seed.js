@@ -13,6 +13,13 @@ const staff = [
 ];
 
 const services = [
+	{
+		name: "Diagnostic général",
+		category: "diagnostic",
+		estimatedMinutes: 90,
+		forUnknownProblem: true,
+		description: "Vous ne savez pas d'où vient le problème : un mécanicien l'identifie et vous conseille",
+	},
 	{ name: "Diagnostic électronique", category: "diagnostic", estimatedMinutes: 60, description: "Lecture des codes défaut (valise Land Rover / SDD)" },
 	{ name: "Vidange + filtres", category: "entretien", estimatedMinutes: 90 },
 	{ name: "Révision complète", category: "entretien", estimatedMinutes: 240 },

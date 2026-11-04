@@ -5,6 +5,12 @@ export const listServices = async (_req, res) => {
 	res.json({ success: true, services });
 };
 
+// Admin : tous les services, y compris ceux désactivés
+export const listAllServices = async (_req, res) => {
+	const services = await Service.find().sort({ category: 1, name: 1 });
+	res.json({ success: true, services });
+};
+
 export const createService = async (req, res) => {
 	const { name, description, category, estimatedMinutes } = req.body;
 	const service = await Service.create({ name, description, category, estimatedMinutes });

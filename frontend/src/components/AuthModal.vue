@@ -55,7 +55,7 @@ async function submit() {
 }
 
 const field =
-  "w-full border border-ink/25 bg-white/70 px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-ink/35 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent"
+  "w-full rounded-lg border border-ink/20 bg-white/70 px-3.5 py-2.5 text-[15px] outline-none transition placeholder:text-ink/35 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent"
 </script>
 
 <template>
@@ -63,7 +63,7 @@ const field =
     <Transition name="modal" :duration="350">
       <!-- overscroll-contain : le défilement ne se transmet pas au site derrière la fenêtre -->
       <div v-if="isOpen" class="fixed inset-0 z-[100] overflow-y-auto overscroll-contain">
-        <div class="modal-backdrop absolute inset-0" @click="ui.closeAuth()"></div>
+        <div class="modal-backdrop fixed inset-0" @click="ui.closeAuth()"></div>
 
         <div class="relative flex min-h-full items-center justify-center p-4">
           <div
@@ -71,7 +71,7 @@ const field =
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-title"
-            class="modal-panel relative grid w-full max-w-4xl overflow-hidden bg-paper shadow-2xl md:grid-cols-[5fr_6fr]"
+            class="modal-panel relative grid w-full max-w-4xl overflow-hidden rounded-2xl bg-paper shadow-2xl md:grid-cols-[5fr_6fr]"
           >
             <!-- Image -->
             <div class="relative hidden md:block">
@@ -154,7 +154,7 @@ const field =
 
                 <button
                   :disabled="loading"
-                  class="group mt-2 flex w-full items-center justify-center gap-2 bg-accent px-6 py-3.5 font-semibold text-paper transition hover:bg-ink disabled:opacity-60"
+                  class="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 font-semibold text-paper transition hover:bg-ink disabled:opacity-60"
                 >
                   {{ loading ? "Un instant…" : isLogin ? "Se connecter" : "Créer mon compte" }}
                   <ArrowRight v-if="!loading" :size="18" class="transition group-hover:translate-x-1" />

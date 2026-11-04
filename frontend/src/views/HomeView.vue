@@ -1,9 +1,22 @@
 <script setup>
+import { useRouter } from "vue-router"
 import { ArrowRight } from "lucide-vue-next"
+import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
+import { homeFor } from "@/router"
 import { contactInfo, models, services, steps } from "@/data/garage"
 
 const ui = useUiStore()
+const auth = useAuthStore()
+const router = useRouter()
+
+// Visiteur : fenêtre de connexion. Client connecté : son espace avec le formulaire de rendez-vous ouvert.
+// Admin ou mécano : leur espace.
+function book() {
+  if (!auth.isLoggedIn) return ui.openAuth()
+  ui.bookingRequested = auth.role === "client"
+  router.push(homeFor(auth.role))
+}
 const whatsappLink = `https://wa.me/${contactInfo.whatsapp}?text=${encodeURIComponent("Bonjour, je souhaite prendre rendez-vous pour mon véhicule.")}`
 </script>
 
@@ -23,8 +36,8 @@ const whatsappLink = `https://wa.me/${contactInfo.whatsapp}?text=${encodeURIComp
         </p>
         <div class="fade-in mt-9 flex flex-wrap items-center gap-6" style="--delay: 800ms">
           <button
-            class="group inline-flex items-center gap-3 bg-ink px-6 py-3.5 font-semibold text-paper transition hover:bg-accent"
-            @click="ui.openAuth()"
+            class="group inline-flex items-center gap-3 rounded-xl bg-ink px-6 py-3.5 font-semibold text-paper transition hover:bg-accent"
+            @click="book"
           >
             Prendre rendez-vous
             <ArrowRight :size="18" class="transition group-hover:translate-x-1" />
@@ -35,7 +48,7 @@ const whatsappLink = `https://wa.me/${contactInfo.whatsapp}?text=${encodeURIComp
         </div>
       </div>
 
-      <div class="img-reveal lg:col-span-6">
+      <div class="img-reveal rounded-2xl lg:col-span-6">
         <img
           src="/images/hero-range-rover-sport.jpg"
           alt="Range Rover Sport rouge"
@@ -80,7 +93,7 @@ const whatsappLink = `https://wa.me/${contactInfo.whatsapp}?text=${encodeURIComp
 
       <div class="grid grid-cols-2 gap-x-4 gap-y-9 lg:grid-cols-4">
         <figure v-for="(m, i) in models" :key="m.name" v-reveal="(i % 4) * 80" class="group">
-          <div class="overflow-hidden bg-ink/10">
+          <div class="overflow-hidden rounded-xl bg-ink/10">
             <img
               :src="m.image"
               :alt="m.name"
@@ -106,10 +119,10 @@ const whatsappLink = `https://wa.me/${contactInfo.whatsapp}?text=${encodeURIComp
         </h2>
         <div class="mt-8 flex flex-wrap items-center gap-6">
           <button
-            class="inline-flex items-center gap-3 bg-ink px-6 py-3.5 font-semibold text-paper transition hover:bg-accent"
-            @click="ui.openAuth()"
+            class="inline-flex items-center gap-3 rounded-xl bg-ink px-6 py-3.5 font-semibold text-paper transition hover:bg-accent"
+            @click="book"
           >
-            Se connecter
+            {{ auth.isLoggedIn ? "Prendre rendez-vous" : "Se connecter" }}
             <ArrowRight :size="18" />
           </button>
           <a
