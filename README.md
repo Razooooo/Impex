@@ -64,6 +64,8 @@ Dans un second terminal, une seule fois, pour créer les comptes et services de 
 docker compose exec backend pnpm seed
 ```
 
+Le seed peut être relancé sans risque après une mise à jour : il n'ajoute que ce qui manque (par exemple un nouveau service) et ne modifie pas les données existantes.
+
 | Service  | Adresse                            |
 | -------- | ---------------------------------- |
 | Site     | http://localhost:5173              |
@@ -115,10 +117,11 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
 └── frontend/
     ├── public/images/       photos des modèles
     └── src/
-        ├── components/      AuthModal (connexion / inscription)
-        ├── data/            contenu de la page de présentation
+        ├── components/      BaseModal (fenêtre générique), AuthModal (connexion / inscription),
+        │                    VehicleModal, AppointmentModal, StaffModal, ServiceModal, AdminAppointmentCard
+        ├── data/            contenu de la page de présentation, horaires d'ouverture, photos des modèles
         ├── directives/      v-reveal (animations au scroll)
-        ├── lib/             client Axios
+        ├── lib/             api (Axios), format (dates, durées, créneaux), categories (zones, symptômes), modalStack
         ├── router/          routes et protection par rôle
         ├── stores/          Pinia : auth, ui
         └── views/           HomeView, ClientDashboard, AdminDashboard, MechanicDashboard
@@ -128,10 +131,16 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
 
 - **User** : prénom, nom, email, mot de passe haché, téléphone, rôle.
 - **Vehicle** : propriétaire, modèle Land Rover, année, plaque, VIN, motorisation, kilométrage.
-- **Service** : nom, catégorie, durée estimée par défaut, actif ou non.
-- **Appointment** : client, véhicule, service, date, statut, mécanicien assigné, temps estimé, notes du client et du mécanicien.
+- **Service** : nom, catégorie (zone), durée estimée par défaut, actif ou non, et `forUnknownProblem` pour le service « Diagnostic général » proposé au client qui ne sait pas ce qui ne va pas.
+- **Appointment** : client, véhicule, service, date, statut, mécanicien assigné, temps estimé, notes du client (dont les symptômes cochés) et du mécanicien.
 
-Statuts d'un rendez-vous : `pending` → `confirmed` → `in_progress` → `done` (ou `cancelled`). Assigner un mécanicien passe le rendez-vous en `confirmed`.
+Statuts d'un rendez-vous : `pending` → `confirmed` → `in_progress` → `done` (ou `cancelled`).
+
+Règles métier :
+- Assigner un mécanicien passe un rendez-vous `pending` en `confirmed`.
+- L'assignation est refusée si le mécanicien a déjà une intervention (confirmée ou en cours) qui chevauche le créneau, durée estimée comprise.
+- Un rendez-vous ne peut pas passer `in_progress` sans mécanicien assigné.
+- Un client ne peut annuler son rendez-vous que tant qu'il est `pending` ou `confirmed`, et ne peut pas supprimer un véhicule qui a un rendez-vous à venir.
 
 ## API
 
@@ -147,6 +156,7 @@ Toutes les routes sont préfixées par `/api`. Les routes protégées attendent 
 | GET     | `/services/all`                | admin (y compris les services désactivés) |
 | POST    | `/services`                    | admin                                    |
 | PATCH   | `/services/:id`                | admin                                    |
+| GET     | `/vehicles/models`             | client (liste des modèles acceptés)      |
 | GET     | `/vehicles`                    | client                                   |
 | POST    | `/vehicles`                    | client                                   |
 | PATCH   | `/vehicles/:id`                | client                                   |
