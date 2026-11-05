@@ -39,12 +39,14 @@ beforeEach(async () => {
 });
 
 describe("remise à zéro de la démo", () => {
-	it("crée l'équipe, le client de démo, des véhicules, des rendez-vous de chaque statut et des absences", async () => {
+	it("crée l'équipe, le client de démo avec un véhicule et un rendez-vous, et des absences", async () => {
 		assert.equal(await User.countDocuments({ role: "mecano" }), 2);
 		assert.equal(await User.countDocuments({ role: "admin" }), 1);
-		assert.equal(await Vehicle.countDocuments(), 2);
-		const statuses = (await Appointment.find()).map((a) => a.status).sort();
-		assert.deepEqual(statuses, ["cancelled", "confirmed", "done", "in_progress", "pending"]);
+		assert.equal(await Vehicle.countDocuments(), 1);
+		const appointments = await Appointment.find();
+		assert.equal(appointments.length, 1);
+		assert.equal(appointments[0].status, "confirmed");
+		assert.ok(appointments[0].assignedMechanic);
 		assert.equal(await TimeOff.countDocuments(), 2);
 		assert.ok((await Service.countDocuments()) >= 8);
 	});
@@ -58,7 +60,7 @@ describe("remise à zéro de la démo", () => {
 		await resetDemo();
 
 		assert.equal(await User.findOne({ email: "visiteur@t.local" }), null);
-		assert.equal(await Vehicle.countDocuments(), 2);
+		assert.equal(await Vehicle.countDocuments(), 1);
 		assert.equal(await Service.findOne({ name: "Service ajouté" }), null);
 		const admin = await User.findOne({ email: "admin@garage.local" }).select("+password");
 		assert.equal(admin.active, true);

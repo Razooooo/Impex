@@ -60,38 +60,19 @@ export async function resetDemo() {
 
 	const [client, marc, sophie] = await Promise.all(["demo@garage.local", "marc@garage.local", "sophie@garage.local"].map((e) => User.findOne({ email: e })));
 	const svc = Object.fromEntries((await Service.find()).map((s) => [s.name, s]));
-	const [defender, sport] = await Vehicle.create([
-		{ owner: client._id, model: "Defender", year: 2021, plate: "1234 TAB", engine: "D250 3.0 diesel", mileage: 48200 },
-		{ owner: client._id, model: "Range Rover Sport", year: 2018, plate: "5678 TBC", engine: "SDV6 3.0 diesel", mileage: 96500 },
-	]);
+	// Jeu d'exemple volontairement réduit : un véhicule et un rendez-vous, pour que la démo reste lisible
+	const defender = await Vehicle.create({ owner: client._id, model: "Defender", year: 2021, plate: "1234 TAB", engine: "D250 3.0 diesel", mileage: 48200 });
 
-	const base = { customer: client._id };
-	const make = (vehicle, service, date, hours, extra) =>
-		({ ...base, vehicle: vehicle._id, service: svc[service]._id, scheduledAt: when(date, hours), estimatedMinutes: svc[service].estimatedMinutes, ...extra });
-
-	await Appointment.create([
-		make(sport, "Vidange + filtres", workday(-4), 9, {
-			status: "done",
-			assignedMechanic: marc._id,
-			mechanicNotes: "Huile et filtres remplacés. Plaquettes avant à surveiller d'ici 10 000 km.",
-		}),
-		make(defender, "Géométrie et pneus", workday(-1), 14, { status: "cancelled", customerNotes: "Pneus à changer avant la saison des pluies." }),
-		make(defender, "Plaquettes et disques de frein", toGarageDate(new Date()), 8, {
-			status: "in_progress",
-			assignedMechanic: marc._id,
-			customerNotes: "Bruit au freinage à basse vitesse.",
-			mechanicNotes: "Disques avant à remplacer, pièces en commande.",
-		}),
-		make(sport, "Suspension pneumatique", workday(2), 10, {
-			status: "confirmed",
-			assignedMechanic: sophie._id,
-			customerNotes: "La voiture s'affaisse à l'arrière après quelques heures à l'arrêt.",
-		}),
-		make(defender, "Diagnostic général", workday(4), 14, {
-			status: "pending",
-			customerNotes: "Symptômes : voyant moteur allumé, perte de puissance. Depuis une semaine, surtout à froid.",
-		}),
-	]);
+	await Appointment.create({
+		customer: client._id,
+		vehicle: defender._id,
+		service: svc["Plaquettes et disques de frein"]._id,
+		scheduledAt: when(workday(2), 10),
+		estimatedMinutes: svc["Plaquettes et disques de frein"].estimatedMinutes,
+		status: "confirmed",
+		assignedMechanic: marc._id,
+		customerNotes: "Bruit au freinage à basse vitesse.",
+	});
 
 	await TimeOff.create([
 		{ scope: "garage", startDate: workday(9), endDate: workday(9), reason: "Jour férié (exemple)" },

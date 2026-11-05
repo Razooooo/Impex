@@ -310,7 +310,7 @@ Avec `DEMO_MODE=true`, l'API se comporte comme un site de présentation :
 - les comptes de démonstration (équipe et client) sont partagés : leur mot de passe, leur adresse et leur état ne peuvent pas être modifiés
 - les données sont remises à zéro au plus une fois par jour : comptes ajoutés, véhicules, rendez-vous, services et absences sont remplacés par un jeu d'exemple
 
-Le jeu d'exemple contient un client (Camille Rakoto) avec deux véhicules et cinq rendez-vous de chaque statut, deux mécaniciens, une fermeture et une absence. Pour le recréer à la main :
+Le jeu d'exemple contient un client (Camille Rakoto) avec un véhicule et un rendez-vous confirmé, deux mécaniciens, une fermeture et une absence. Pour le recréer à la main :
 
 ```bash
 docker compose exec backend pnpm seed --demo
