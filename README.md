@@ -6,6 +6,7 @@ Le client choisit une prestation pour son véhicule et une heure disponible. Le 
 
 ## Sommaire
 
+- [Démo en ligne](#démo-en-ligne)
 - [Technologies](#technologies)
 - [Fonctionnalités](#fonctionnalités)
 - [Démarrage](#démarrage)
@@ -21,6 +22,23 @@ Le client choisit une prestation pour son véhicule et une heure disponible. Le 
 - [Lancer sans Docker](#lancer-sans-docker)
 - [Voir la base avec Compass](#voir-la-base-avec-compass)
 - [Reste à faire](#reste-à-faire)
+
+## Démo en ligne
+
+**https://impex-ivo5.vercel.app**
+
+La fenêtre de connexion propose « Visiter la démo sans compte » avec trois accès : client, garage et mécano. Les données sont fictives et remises à zéro chaque jour. L'API tourne sur Vercel, la base sur MongoDB Atlas (offres gratuites).
+
+| | |
+| --- | --- |
+| ![Page d'accueil](docs/screenshots/accueil.png) | ![Connexion et accès démo](docs/screenshots/connexion.png) |
+| Page d'accueil | Connexion et accès démo |
+| ![Espace client](docs/screenshots/client.png) | ![Réservation guidée](docs/screenshots/reservation.png) |
+| Espace client | Réservation guidée |
+| ![Espace garage](docs/screenshots/admin.png) | ![Calendrier du garage](docs/screenshots/calendrier.png) |
+| Espace garage | Calendrier par mécanicien |
+| ![Équipe](docs/screenshots/equipe.png) | ![Espace mécanicien](docs/screenshots/mecano.png) |
+| Équipe | Espace mécanicien |
 
 ## Technologies
 
@@ -361,4 +379,4 @@ La base n'apparaît qu'après une première écriture (seed ou création de comp
 - [ ] Validation des entrées par schémas
 - [ ] Tests du front et documentation OpenAPI
 - [ ] Vraies coordonnées, photos et textes sur la page d'accueil
-- [ ] Image Docker de production, base hébergée, domaine et HTTPS
+- [ ] Nom de domaine personnalisé
