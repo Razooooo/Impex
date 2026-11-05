@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import app from "../src/app.js";
 import Appointment from "../src/models/Appointment.js";
 import Service from "../src/models/Service.js";
@@ -68,8 +69,7 @@ describe("remise à zéro de la démo", () => {
 		await ensureDemoFresh();
 		assert.ok(await Service.findById(marker._id), "données récentes : rien n'est effacé");
 
-		// createdAt est immuable pour Mongoose : on vieillit le compte directement dans la collection
-		await User.collection.updateOne({ email: "demo@garage.local" }, { $set: { createdAt: new Date(Date.now() - 25 * 3600 * 1000) } });
+			await mongoose.connection.collection("meta").updateOne({ _id: "demoReset" }, { $set: { at: new Date(Date.now() - 25 * 3600 * 1000) } });
 		await ensureDemoFresh();
 		assert.equal(await Service.findById(marker._id), null);
 	});

@@ -124,6 +124,7 @@ Ces comptes servent au développement uniquement. Les clients créent leur compt
 │   │   ├── utils/         créneaux, heures du garage, emails
 │   │   ├── app.js
 │   │   └── server.js
+│   ├── api/               point d'entrée Vercel
 │   └── tests/             tests automatiques
 └── frontend/
     ├── public/images/     photos des modèles
@@ -300,14 +301,23 @@ Attention : cette commande efface rendez-vous, véhicules et comptes clients de 
 
 ## Mise en ligne
 
-L'API tourne sur Render, le site sur Vercel, la base sur MongoDB Atlas. Les trois ont une offre gratuite.
+Le site et l'API sont deux projets Vercel créés depuis le même dépôt. La base est sur MongoDB Atlas. Les deux ont une offre gratuite.
 
-1. **Atlas** : créer un cluster gratuit, un utilisateur de base de données, autoriser l'accès réseau `0.0.0.0/0`, puis copier la chaîne de connexion (en ajoutant le nom de la base, par exemple `/garage_landrover`).
-2. **Render** : nouveau « Blueprint » à partir de ce dépôt (il lit `render.yaml`). Renseigner `MONGO_URI` avec la chaîne Atlas. `CLIENT_URL` se remplit à l'étape 4.
-3. **Vercel** : importer le dépôt, dossier racine `frontend`, preset Vite. Ajouter la variable `VITE_API_URL` avec l'adresse de l'API Render suivie de `/api`.
-4. Revenir sur Render, mettre l'adresse du site Vercel dans `CLIENT_URL` (sans `/` final), puis redéployer.
+1. **Atlas** : créer un cluster gratuit et un utilisateur de base de données. Dans « Network Access », autoriser `0.0.0.0/0`. Copier la chaîne de connexion et ajouter le nom de la base, par exemple `/garage_landrover`.
+2. **Vercel, projet de l'API** : importer le dépôt, dossier racine `Back-end`, preset « Other ». Variables d'environnement :
 
-Sur l'offre gratuite de Render, l'API s'endort après un moment sans visite : la première requête prend environ 30 secondes. La base de démonstration se crée toute seule au premier démarrage.
+| Variable      | Valeur                                              |
+| ------------- | --------------------------------------------------- |
+| `MONGO_URI`   | la chaîne de connexion Atlas                        |
+| `JWT_SECRET`  | un secret de 32 caractères ou plus (voir ci-dessus) |
+| `DEMO_MODE`   | `true`                                              |
+| `TRUST_PROXY` | `1`                                                 |
+| `CLIENT_URL`  | l'adresse du site (étape 4), sans `/` final         |
+
+3. **Vercel, projet du site** : importer le même dépôt, dossier racine `frontend`, preset Vite. Variable `VITE_API_URL` : l'adresse de l'API suivie de `/api`.
+4. Renseigner `CLIENT_URL` dans le projet de l'API avec l'adresse du site, puis redéployer l'API.
+
+L'API est une fonction serverless (`Back-end/api/index.js`, `Back-end/vercel.json`). Il n'y a pas de tâche de fond : la remise à zéro de la démo est vérifiée au plus toutes les 30 minutes, à la première requête qui suit. La base de démonstration se crée toute seule à la première visite.
 
 ## Lancer sans Docker
 

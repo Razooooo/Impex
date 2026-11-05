@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import { services, staff } from "../config/seedData.js";
 import Appointment from "../models/Appointment.js";
 import Service from "../models/Service.js";
@@ -21,6 +22,8 @@ export const isSharedDemoAccount = (email) => isDemo() && SHARED.includes(String
 
 const DAY = 24 * 60 * 60 * 1000;
 
+const markReset = () => mongoose.connection.collection("meta").updateOne({ _id: "demoReset" }, { $set: { at: new Date() } }, { upsert: true });
+
 // Date (« 2026-11-23 ») du n-ième jour ouvré (lundi à vendredi) après aujourd'hui, n négatif = avant
 function workday(n) {
 	let date = toGarageDate(new Date());
@@ -35,6 +38,7 @@ function workday(n) {
 const when = (date, hours) => new Date(at(parseDate(date), hours));
 
 export async function resetDemo() {
+	await markReset();
 	const password = await bcrypt.hash(process.env.DEMO_PASSWORD || process.env.SEED_PASSWORD || "Password123!", 10);
 
 	await Promise.all([Appointment.deleteMany({}), Vehicle.deleteMany({}), TimeOff.deleteMany({})]);
@@ -95,11 +99,19 @@ export async function resetDemo() {
 	]);
 }
 
-// La démo repart de zéro au plus une fois par jour : on se base sur la date de création du compte client de démo
+// La démo repart de zéro au plus une fois par jour. La date de la dernière remise à zéro est gardée en base :
+// plusieurs instances de l'API (hébergement serverless) peuvent appeler cette fonction en même temps,
+// une seule "réserve" la remise à zéro (mise à jour atomique), les autres passent leur tour.
 export async function ensureDemoFresh() {
-	const demo = await User.findOne({ email: DEMO_CLIENT.email }).select("createdAt");
-	if (!demo || Date.now() - demo.createdAt.getTime() > DAY) {
-		await resetDemo();
-		console.log("🌱 Données de démonstration réinitialisées.");
+	const meta = mongoose.connection.collection("meta");
+	const cutoff = new Date(Date.now() - DAY);
+	try {
+		const claim = await meta.updateOne({ _id: "demoReset", at: { $lt: cutoff } }, { $set: { at: new Date() } }, { upsert: true });
+		if (!claim.upsertedCount && !claim.modifiedCount) return;
+	} catch (error) {
+		if (error.code === 11000) return; // la remise à zéro est récente (ou déjà réservée par une autre instance)
+		throw error;
 	}
+	await resetDemo();
+	console.log("🌱 Données de démonstration réinitialisées.");
 }
