@@ -32,7 +32,8 @@ export async function findUnavailability(mechanicId, dateStr) {
  *  - le garage est ouvert ce jour-là (ni jour de fermeture, ni jour férié déclaré) ;
  *  - l'intervention se termine avant la fermeture, et le créneau n'est pas déjà passé (délai minimum compris) ;
  *  - il reste au moins un mécanicien présent et libre, en comptant aussi les demandes encore en attente
- *    (elles n'ont pas de mécanicien mais en occuperont un), pour éviter de promettre plus que ce que le garage peut faire.
+ *    et celles à réassigner (mécanicien absent ou désactivé) : elles occuperont un mécanicien, pour éviter
+ *    de promettre plus que ce que le garage peut faire.
  * Retourne null si la date est invalide.
  */
 export async function getDayAvailability(dateStr, duration, excludeId = null) {
@@ -51,7 +52,7 @@ export async function getDayAvailability(dateStr, duration, excludeId = null) {
 	const openMs = at(p, hours[0]);
 	const closeMs = at(p, hours[1]);
 
-	const mechanicIds = (await User.find({ role: "mecano" }).select("_id"))
+	const mechanicIds = (await User.find({ role: "mecano", active: { $ne: false } }).select("_id"))
 		.map((m) => String(m._id))
 		.filter((id) => !absent.has(id));
 	const appointments = await Appointment.find({
@@ -78,7 +79,9 @@ export async function getDayAvailability(dateStr, duration, excludeId = null) {
 		if (available) {
 			const overlapping = busy.filter((a) => a.start < end && a.end > start);
 			const busyMechanics = new Set(overlapping.filter((a) => a.mechanic && mechanicIds.includes(a.mechanic)).map((a) => a.mechanic));
-			const unassigned = overlapping.filter((a) => !a.mechanic).length;
+			// Sans mécanicien, ou assigné à quelqu'un d'absent ou désactivé : il faudra lui trouver un autre mécanicien,
+			// donc il occupe une place dès maintenant.
+			const unassigned = overlapping.filter((a) => !a.mechanic || !mechanicIds.includes(a.mechanic)).length;
 			available = mechanicIds.length - busyMechanics.size - unassigned >= 1;
 		}
 		slots.push({ time: label(t), start: new Date(start).toISOString(), available });

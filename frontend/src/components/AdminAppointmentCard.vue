@@ -51,6 +51,10 @@ const offFor = (m) =>
 const closure = computed(() => props.timeOffs.find((t) => t.scope === "garage" && t.startDate <= day.value && t.endDate >= day.value))
 // Le mécanicien assigné est absent : il faut réassigner ce rendez-vous
 const assignedOff = computed(() => (canManage.value && a.value.assignedMechanic && !closure.value ? offFor(a.value.assignedMechanic) : null))
+// Le mécanicien assigné ne fait plus partie de l'équipe (compte désactivé)
+const assignedGone = computed(
+  () => canManage.value && a.value.assignedMechanic && !props.mechanics.some((m) => m._id === a.value.assignedMechanic._id),
+)
 
 // « Marc Dupont · 2 ce jour-là » aide à répartir le travail ; « absent ce jour-là » désactive le choix
 function workload(m) {
@@ -140,6 +144,9 @@ function cancel() {
         </p>
         <p v-if="closure" class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
           Le garage est fermé ce jour-là{{ closure.reason ? ` (${closure.reason})` : "" }}. Ce rendez-vous ne peut pas avoir lieu : refusez-le ou annulez-le.
+        </p>
+        <p v-else-if="assignedGone" class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          {{ a.assignedMechanic.firstName }} ne fait plus partie de l'équipe : réassignez ce rendez-vous à un autre mécanicien.
         </p>
         <p v-else-if="assignedOff" class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
           {{ a.assignedMechanic.firstName }} est absent ce jour-là{{ assignedOff.reason ? ` (${assignedOff.reason})` : "" }} : réassignez ce rendez-vous à un autre mécanicien.

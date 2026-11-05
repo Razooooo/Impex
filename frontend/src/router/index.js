@@ -12,6 +12,15 @@ const router = createRouter({
   },
   routes: [
     { path: "/", name: "home", component: () => import("@/views/HomeView.vue") },
+    // Lien reçu par email : affiche la page d'accueil, et l'application ouvre la fenêtre « nouveau mot de passe »
+    { path: "/reset-password", name: "reset", component: () => import("@/views/HomeView.vue") },
+    // Mon compte : informations personnelles et mot de passe, pour tous les rôles
+    {
+      path: "/compte",
+      name: "account",
+      component: () => import("@/views/AccountView.vue"),
+      meta: { roles: ["client", "mecano", "admin"] },
+    },
     // Espace client : mes véhicules et mes rendez-vous
     {
       path: "/client",

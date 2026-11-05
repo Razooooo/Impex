@@ -90,7 +90,8 @@ export const assignAppointment = async (req, res) => {
 
 	const targetId = mechanicId || appointment.assignedMechanic;
 	if (targetId) {
-		const mechanic = await User.findOne({ _id: targetId, role: "mecano" });
+		// Un nouveau mécanicien doit être en activité ; pour garder celui déjà assigné (ex. changer la durée), pas de contrôle
+		const mechanic = await User.findOne({ _id: targetId, role: "mecano", ...(mechanicId ? { active: { $ne: false } } : {}) });
 		if (!mechanic) return res.status(404).json({ success: false, message: "Mécanicien introuvable." });
 
 		const off = await findUnavailability(mechanic._id, toGarageDate(appointment.scheduledAt));

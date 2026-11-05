@@ -12,6 +12,15 @@ services:
       timeout: 5s
       retries: 10
 
+  # Boîte mail de développement : capte tous les emails envoyés par l'API, sans rien envoyer pour de vrai.
+  # Interface : http://localhost:8025
+  mailpit:
+    image: axllent/mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
   backend:
     build: ./Back-end
     restart: unless-stopped
@@ -22,9 +31,14 @@ services:
       MONGO_URI: mongodb://mongo:27017/garage_landrover
       JWT_SECRET: ${JWT_SECRET:-dev_secret_a_changer}
       CLIENT_URL: http://localhost:5173
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      MAIL_FROM: "IMPEX <no-reply@impex.mg>"
     depends_on:
       mongo:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     volumes:
       - ./Back-end:/app
       - /app/node_modules

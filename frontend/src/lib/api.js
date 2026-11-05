@@ -11,11 +11,17 @@ http.interceptors.request.use((config) => {
   return config
 })
 
-// Remonte le message d'erreur du serveur dans error.message
+// Remonte le message d'erreur du serveur dans error.message.
+// Un 401 alors qu'on était connecté (session expirée, compte désactivé, mot de passe changé ailleurs) :
+// on le signale à l'application, qui déconnecte et propose de se reconnecter.
 http.interceptors.response.use(
   (res) => res,
   (error) => {
     error.message = error.response?.data?.message || "Erreur réseau"
+    const isLoginRequest = error.config?.url === "/auth/login"
+    if (error.response?.status === 401 && localStorage.getItem("token") && !isLoginRequest) {
+      window.dispatchEvent(new CustomEvent("session-expired", { detail: error.message }))
+    }
     return Promise.reject(error)
   },
 )

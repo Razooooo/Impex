@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createStaff, listMechanics, listStaff } from "../controllers/userController.js";
+import { createStaff, listMechanics, listStaff, setStaffActive } from "../controllers/userController.js";
 import { protect, restrictTo } from "../middlewares/authMiddleware.js";
 
 const router = Router();
@@ -8,5 +8,6 @@ router.use(protect, restrictTo("admin"));
 router.get("/mechanics", listMechanics);
 router.get("/staff", listStaff);
 router.post("/staff", createStaff);
+router.patch("/staff/:id/active", setStaffActive);
 
 export default router;

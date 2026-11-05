@@ -32,12 +32,17 @@ const editingService = ref(null)
 const showTimeOff = ref(false)
 const timeOffDay = ref("")
 const selectedId = ref(null) // rendez-vous ouvert depuis le calendrier
-const affected = ref([]) // rendez-vous touchés par une absence ou une fermeture qu'on vient de déclarer
+const affected = ref([]) // rendez-vous à traiter après une absence, une fermeture ou le départ d'un mécanicien
+const affectedInfo = ref({ title: "", text: "" })
 const confirmingOffId = ref(null)
+const confirmingStaffId = ref(null)
 
 const ACTIVE = ["pending", "confirmed", "in_progress"]
-const mechanics = computed(() => staff.value.filter((s) => s.role === "mecano"))
-const admins = computed(() => staff.value.filter((s) => s.role === "admin"))
+// Les comptes créés avant l'ajout de la désactivation n'ont pas de champ « active » : on teste donc `!== false`
+const isActive = (s) => s.active !== false
+const mechanics = computed(() => staff.value.filter((s) => s.role === "mecano" && isActive(s)))
+const admins = computed(() => staff.value.filter((s) => s.role === "admin" && isActive(s)))
+const former = computed(() => staff.value.filter((s) => !isActive(s)))
 
 async function load() {
   try {
@@ -90,6 +95,10 @@ async function onTimeOffSaved({ timeOff, affected: touched }) {
   showTimeOff.value = false
   await load()
   affected.value = touched
+  affectedInfo.value = {
+    title: "déjà pris sur cette période",
+    text: "Réassignez-les à un autre mécanicien, ou refusez-les si le garage est fermé.",
+  }
   const who = timeOff.scope === "garage" ? "Fermeture du garage" : `Absence de ${timeOff.mechanic?.firstName}`
   flash(`${who} enregistrée (${labelRange(timeOff.startDate, timeOff.endDate)}). Les créneaux sont à jour.`)
 }
@@ -155,6 +164,34 @@ function agenda(m) {
 }
 const initials = (u) => `${u.firstName?.[0] ?? ""}${u.lastName?.[0] ?? ""}`.toUpperCase()
 
+// Désactiver demande une confirmation (deux clics) ; réactiver est immédiat
+async function setStaffActive(member, active) {
+  if (!active && confirmingStaffId.value !== member._id) {
+    confirmingStaffId.value = member._id
+    return
+  }
+  try {
+    const result = await api(`/users/staff/${member._id}/active`, { method: "PATCH", body: { active } })
+    await load()
+    const name = `${member.firstName} ${member.lastName}`
+    if (active) flash(`${name} fait de nouveau partie de l'équipe.`)
+    else {
+      flash(`${name} a été désactivé : il ne peut plus se connecter ni recevoir de rendez-vous. Son historique est conservé.`)
+      if (result.affected.length) {
+        affected.value = result.affected
+        affectedInfo.value = {
+          title: `à réassigner (intervention${result.affected.length > 1 ? "s" : ""} de ${member.firstName})`,
+          text: `${member.firstName} ne fait plus partie de l'équipe : confiez ces interventions à un autre mécanicien.`,
+        }
+      }
+    }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    confirmingStaffId.value = null
+  }
+}
+
 async function onStaffSaved(user) {
   showStaff.value = false
   await load()
@@ -209,6 +246,27 @@ const tabs = computed(() => [
 
     <p v-if="notice" role="status" class="mt-6 rounded-xl bg-accent/10 px-4 py-3 text-sm font-medium text-accent">{{ notice }}</p>
     <p v-if="error" role="alert" class="mt-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">{{ error }}</p>
+
+    <!-- Rendez-vous à traiter après une absence, une fermeture ou le départ d'un mécanicien (visible sur tous les onglets) -->
+    <div v-if="affected.length" class="mt-6 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="font-semibold text-amber-950">{{ affected.length }} rendez-vous {{ affectedInfo.title }}</p>
+          <p class="mt-0.5 text-sm text-amber-900/80">{{ affectedInfo.text }}</p>
+        </div>
+        <button class="flex-none text-sm font-semibold text-amber-900 underline underline-offset-4" @click="affected = []">Masquer</button>
+      </div>
+      <ul class="mt-3 divide-y divide-amber-200">
+        <li v-for="a in affected" :key="a._id" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+          <span>
+            <span class="font-medium">{{ formatDay(a.scheduledAt) }} à {{ formatTime(a.scheduledAt) }}</span>
+            · {{ a.service }} · {{ a.customer }}
+            <span class="text-amber-900/70">{{ a.mechanic ? `· ${a.mechanic}` : "· à assigner" }}</span>
+          </span>
+          <button class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm transition hover:bg-amber-100" @click="selectedId = a._id">Ouvrir</button>
+        </li>
+      </ul>
+    </div>
 
     <!-- Résumé -->
     <section class="mt-8 grid gap-4 lg:grid-cols-6">
@@ -293,27 +351,6 @@ const tabs = computed(() => [
 
     <!-- CALENDRIER -->
     <section v-else-if="tab === 'calendar'" class="mt-6">
-      <!-- Rendez-vous touchés par l'absence ou la fermeture qu'on vient de déclarer -->
-      <div v-if="affected.length" class="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <p class="font-semibold text-amber-950">{{ affected.length }} rendez-vous déjà pris sur cette période</p>
-            <p class="mt-0.5 text-sm text-amber-900/80">Réassignez-les à un autre mécanicien, ou refusez-les si le garage est fermé.</p>
-          </div>
-          <button class="flex-none text-sm font-semibold text-amber-900 underline underline-offset-4" @click="affected = []">Masquer</button>
-        </div>
-        <ul class="mt-3 divide-y divide-amber-200">
-          <li v-for="a in affected" :key="a._id" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-            <span>
-              <span class="font-medium">{{ formatDay(a.scheduledAt) }} à {{ formatTime(a.scheduledAt) }}</span>
-              · {{ a.service }} · {{ a.customer }}
-              <span class="text-amber-900/70">{{ a.mechanic ? `· ${a.mechanic}` : "· à assigner" }}</span>
-            </span>
-            <button class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm transition hover:bg-amber-100" @click="selectedId = a._id">Ouvrir</button>
-          </li>
-        </ul>
-      </div>
-
       <AdminCalendar :appointments="appointments" :mechanics="mechanics" :time-offs="timeOffs" :config="config" @open="selectedId = $event._id" @add-timeoff="openTimeOff" />
 
       <!-- Absences et fermetures à venir -->
@@ -372,15 +409,54 @@ const tabs = computed(() => [
               <span class="flex-none text-right text-xs text-ink/60">{{ formatDayMonth(a.scheduledAt) }}<br />{{ formatTime(a.scheduledAt) }} · {{ formatDuration(a.estimatedMinutes) }}</span>
             </li>
           </ul>
+
+          <div class="mt-4 border-t border-ink/10 pt-3 text-right">
+            <button
+              class="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+              :class="confirmingStaffId === m._id ? 'bg-red-100 text-red-800' : 'text-ink/50 hover:bg-ink/5 hover:text-ink'"
+              @click="setStaffActive(m, false)"
+              @blur="confirmingStaffId = null"
+            >
+              {{ confirmingStaffId === m._id ? "Confirmer la désactivation" : "Désactiver ce compte" }}
+            </button>
+          </div>
         </li>
       </ul>
 
       <div v-if="admins.length" class="mt-10">
         <h2 class="mb-3 text-lg font-bold tracking-tight">Administrateurs</h2>
         <ul class="flex flex-wrap gap-3">
-          <li v-for="u in admins" :key="u._id" class="flex items-center gap-3 rounded-full border border-ink/10 bg-white py-1.5 pl-1.5 pr-4 text-sm shadow-sm">
+          <li v-for="u in admins" :key="u._id" class="flex items-center gap-3 rounded-full border border-ink/10 bg-white py-1.5 pl-1.5 pr-2 text-sm shadow-sm">
             <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-paper">{{ initials(u) }}</span>
             {{ u.firstName }} {{ u.lastName }}
+            <span v-if="u._id === auth.user.id" class="rounded-full bg-ink/[0.06] px-2 py-0.5 text-[11px] font-semibold text-ink/60">Vous</span>
+            <button
+              v-else
+              class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
+              :class="confirmingStaffId === u._id ? 'bg-red-100 text-red-800' : 'text-ink/45 hover:bg-ink/5 hover:text-ink'"
+              @click="setStaffActive(u, false)"
+              @blur="confirmingStaffId = null"
+            >
+              {{ confirmingStaffId === u._id ? "Confirmer" : "Désactiver" }}
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Comptes désactivés : l'historique est conservé, on peut les réactiver -->
+      <div v-if="former.length" class="mt-10">
+        <h2 class="mb-1 text-lg font-bold tracking-tight">Anciens membres</h2>
+        <p class="mb-3 text-sm text-ink/60">Ils ne peuvent plus se connecter et n'apparaissent plus dans les créneaux ni les assignations.</p>
+        <ul class="grid gap-3 lg:grid-cols-2">
+          <li v-for="u in former" :key="u._id" class="flex items-center justify-between gap-4 rounded-2xl border border-dashed border-ink/25 bg-white/50 p-4">
+            <div class="flex min-w-0 items-center gap-3">
+              <span class="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-ink/15 text-xs font-bold text-ink/60">{{ initials(u) }}</span>
+              <div class="min-w-0">
+                <p class="font-semibold text-ink/70">{{ u.firstName }} {{ u.lastName }}</p>
+                <p class="truncate text-xs text-ink/50">{{ u.role === "admin" ? "Administrateur" : "Mécanicien" }} · {{ u.email }}</p>
+              </div>
+            </div>
+            <button class="flex-none rounded-lg bg-accent/10 px-3 py-1.5 text-sm font-semibold text-accent transition hover:bg-accent hover:text-paper" @click="setStaffActive(u, true)">Réactiver</button>
           </li>
         </ul>
       </div>

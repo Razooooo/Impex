@@ -101,6 +101,8 @@ const columns = computed(() => {
   if (mode.value === "day") {
     const d = date.value
     const events = eventsOn(d)
+    // Sans mécanicien, ou assigné à quelqu'un qui n'est plus dans l'équipe : à (ré)assigner
+    const known = new Set(props.mechanics.map((m) => m._id))
     return [
       ...props.mechanics.map((m) =>
         makeColumn({
@@ -111,7 +113,13 @@ const columns = computed(() => {
           absence: absenceOf(d, m._id),
         }),
       ),
-      makeColumn({ key: "unassigned", date: d, title: "À assigner", events: events.filter((a) => !a.assignedMechanic), unassigned: true }),
+      makeColumn({
+        key: "unassigned",
+        date: d,
+        title: "À assigner",
+        events: events.filter((a) => !a.assignedMechanic || !known.has(a.assignedMechanic._id)),
+        unassigned: true,
+      }),
     ]
   }
   return weekDays.value.map((d) =>

@@ -1,6 +1,6 @@
-import Appointment from "../models/Appointment.js";
 import TimeOff from "../models/TimeOff.js";
 import User from "../models/User.js";
+import { summarizeAppointments } from "../utils/appointmentSummary.js";
 import { parseDate, rangeMs, toGarageDate } from "../utils/garageTime.js";
 
 const MAX_DAYS = 366;
@@ -23,21 +23,7 @@ async function findAffected({ scope, mechanic, startDate, endDate }) {
 		status: { $in: scope === "garage" ? ["pending", "confirmed", "in_progress"] : ["confirmed", "in_progress"] },
 		...(scope === "mechanic" ? { assignedMechanic: mechanic } : {}),
 	};
-	const appointments = await Appointment.find(filter)
-		.sort({ scheduledAt: 1 })
-		.populate("customer", "firstName lastName")
-		.populate("service", "name")
-		.populate("vehicle", "model")
-		.populate("assignedMechanic", "firstName lastName");
-	return appointments.map((a) => ({
-		_id: a._id,
-		scheduledAt: a.scheduledAt,
-		status: a.status,
-		service: a.service?.name,
-		vehicle: a.vehicle?.model,
-		customer: a.customer ? `${a.customer.firstName} ${a.customer.lastName}` : "",
-		mechanic: a.assignedMechanic ? `${a.assignedMechanic.firstName} ${a.assignedMechanic.lastName}` : null,
-	}));
+	return summarizeAppointments(filter);
 }
 
 // Admin : déclare une fermeture du garage ou l'absence d'un mécanicien
