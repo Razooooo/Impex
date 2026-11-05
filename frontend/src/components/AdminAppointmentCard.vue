@@ -1,7 +1,8 @@
 <script setup>
 import { computed, ref, watch } from "vue"
-import { Mail, Phone } from "lucide-vue-next"
+import { CalendarClock, Mail, Phone } from "lucide-vue-next"
 import { api } from "@/lib/api"
+import RescheduleModal from "@/components/RescheduleModal.vue"
 import { dayOfMonth, formatDay, formatDuration, formatTime, monthShort, statusMeta, toDateInput } from "@/lib/format"
 
 const props = defineProps({
@@ -93,6 +94,17 @@ const saveAssignment = () =>
 const setStatus = (status, message) =>
   run(() => api(`/appointments/${a.value._id}/status`, { method: "PATCH", body: { status } }), message)
 
+const showReschedule = ref(false)
+function onRescheduled({ released }) {
+  showReschedule.value = false
+  emit(
+    "changed",
+    released
+      ? `Rendez-vous reprogrammé. ${released} n'est pas libre à cette date : il repasse en attente, choisissez un mécanicien.`
+      : "Rendez-vous reprogrammé.",
+  )
+}
+
 function cancel() {
   if (!confirmingCancel.value) return (confirmingCancel.value = true)
   setStatus("cancelled", "Rendez-vous annulé.")
@@ -169,17 +181,26 @@ function cancel() {
       <p v-if="error" role="alert" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">{{ error }}</p>
 
       <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-        <button
-          v-if="canManage"
-          type="button"
-          class="rounded-lg px-3 py-1.5 text-sm font-semibold transition"
-          :class="confirmingCancel ? 'bg-red-100 text-red-800' : 'text-ink/55 hover:bg-ink/5 hover:text-ink'"
-          :disabled="busy"
-          @click="cancel"
-          @blur="confirmingCancel = false"
-        >
-          {{ confirmingCancel ? "Confirmer l'annulation" : isPending ? "Refuser" : "Annuler" }}
-        </button>
+        <div v-if="canManage" class="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold text-ink/70 transition hover:bg-ink/5 hover:text-ink"
+            :disabled="busy"
+            @click="showReschedule = true"
+          >
+            <CalendarClock :size="15" /> Reprogrammer
+          </button>
+          <button
+            type="button"
+            class="rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+            :class="confirmingCancel ? 'bg-red-100 text-red-800' : 'text-ink/55 hover:bg-ink/5 hover:text-ink'"
+            :disabled="busy"
+            @click="cancel"
+            @blur="confirmingCancel = false"
+          >
+            {{ confirmingCancel ? "Confirmer l'annulation" : isPending ? "Refuser" : "Annuler" }}
+          </button>
+        </div>
         <span v-else></span>
 
         <div class="flex flex-wrap items-center gap-2">
@@ -222,5 +243,7 @@ function cancel() {
         </li>
       </ol>
     </div>
+
+    <RescheduleModal v-if="canManage" :open="showReschedule" :appointment="a" @close="showReschedule = false" @saved="onRescheduled" />
   </li>
 </template>

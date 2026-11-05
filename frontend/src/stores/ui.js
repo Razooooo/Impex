@@ -6,6 +6,7 @@ export const useUiStore = defineStore("ui", {
     authMode: null, // fenêtre de connexion : 'login' | 'register' | 'forgot' | 'reset' | null
     authNotice: "", // message affiché en haut de la fenêtre (session expirée, mot de passe modifié…)
     resetToken: "", // jeton du lien « mot de passe oublié » reçu par email
+    demo: false, // site de démonstration (annoncé par l'API) : connexion rapide, bandeau, lien de réinitialisation affiché
     bookingRequested: false, // le tableau de bord client doit ouvrir le formulaire de rendez-vous
   }),
   actions: {

@@ -6,6 +6,7 @@ import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
 import { homeFor } from "@/router"
 import AuthModal from "@/components/AuthModal.vue"
+import { api } from "@/lib/api"
 
 const auth = useAuthStore()
 const ui = useUiStore()
@@ -45,12 +46,18 @@ function onSessionExpired(event) {
   ui.openAuth("login", event.detail || "Votre session a expiré. Reconnectez-vous.")
   if (route.meta.roles) router.push("/")
 }
-onMounted(() => window.addEventListener("session-expired", onSessionExpired))
+onMounted(() => {
+  window.addEventListener("session-expired", onSessionExpired)
+  api("/garage").then((g) => (ui.demo = !!g.demo)).catch(() => {})
+})
 onBeforeUnmount(() => window.removeEventListener("session-expired", onSessionExpired))
 </script>
 
 <template>
   <div class="min-h-screen">
+    <p v-if="ui.demo" class="bg-ink px-4 py-2 text-center text-xs text-paper/85">
+      Site de démonstration : toutes les données sont fictives et remises à zéro chaque jour.
+    </p>
     <header class="sticky top-0 z-50 border-b border-ink/15 bg-paper/95 backdrop-blur">
       <nav class="mx-auto flex items-center justify-between py-4" :class="isHome ? 'max-w-6xl px-5' : 'max-w-[1600px] px-6 lg:px-10'">
         <RouterLink to="/" class="text-xl font-extrabold tracking-wide">IMPEX</RouterLink>

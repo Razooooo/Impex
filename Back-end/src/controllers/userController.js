@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { summarizeAppointments } from "../utils/appointmentSummary.js";
+import { isSharedDemoAccount } from "../utils/demo.js";
 
 // Admin : mécaniciens en activité (pour l'assignation des tâches)
 export const listMechanics = async (_req, res) => {
@@ -49,6 +50,9 @@ export const setStaffActive = async (req, res) => {
 
 	const user = await User.findOne({ _id: req.params.id, role: { $in: ["mecano", "admin"] } });
 	if (!user) return res.status(404).json({ success: false, message: "Membre introuvable." });
+	if (isSharedDemoAccount(user.email)) {
+		return res.status(403).json({ success: false, message: "Les comptes de démonstration ne peuvent pas être désactivés." });
+	}
 
 	if (!active) {
 		if (String(user._id) === req.user.id) return fail("Vous ne pouvez pas désactiver votre propre compte.");
@@ -67,4 +71,24 @@ export const setStaffActive = async (req, res) => {
 			: [];
 
 	res.json({ success: true, user: updated, affected });
+};
+
+// Admin : modifie les informations d'un membre (nom, email, téléphone). Le rôle et le mot de passe ne changent pas ici :
+// le membre change son mot de passe lui-même, ou passe par « mot de passe oublié ».
+export const updateStaff = async (req, res) => {
+	const user = await User.findOne({ _id: req.params.id, role: { $in: ["mecano", "admin"] } });
+	if (!user) return res.status(404).json({ success: false, message: "Membre introuvable." });
+	if (isSharedDemoAccount(user.email)) {
+		return res.status(403).json({ success: false, message: "Les comptes de démonstration ne peuvent pas être modifiés." });
+	}
+
+	const { firstName, lastName, email, phone } = req.body;
+	const update = {};
+	if (firstName !== undefined) update.firstName = String(firstName).trim();
+	if (lastName !== undefined) update.lastName = String(lastName).trim();
+	if (phone !== undefined) update.phone = String(phone).trim();
+	if (email !== undefined) update.email = String(email).trim().toLowerCase();
+
+	const updated = await User.findByIdAndUpdate(user._id, update, { new: true, runValidators: true });
+	res.json({ success: true, user: updated });
 };

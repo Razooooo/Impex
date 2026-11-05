@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import { demoEmailFor, isDemo, isSharedDemoAccount } from "../utils/demo.js";
 import { sendPasswordResetEmail } from "../utils/mailer.js";
 
 const signToken = (user) =>
@@ -39,10 +40,11 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-	const { email, password } = req.body;
+	const email = String(req.body.email ?? "").trim().toLowerCase();
+	const password = typeof req.body.password === "string" ? req.body.password : "";
 	const user = await User.findOne({ email }).select("+password");
 
-	if (!user || !(await bcrypt.compare(password ?? "", user.password))) {
+	if (!user || !(await bcrypt.compare(password, user.password))) {
 		return fail(res, "Email ou mot de passe incorrect.", 401);
 	}
 	// Testé après le mot de passe pour ne pas révéler l'existence d'un compte à quelqu'un qui ne le connaît pas
@@ -50,6 +52,15 @@ export const login = async (req, res) => {
 		return fail(res, "Ce compte est désactivé. Contactez le garage.", 403);
 	}
 
+	res.json({ success: true, token: signToken(user), user: publicUser(user) });
+};
+
+// Mode démo : connexion en un clic avec le compte client, admin ou mécanicien de démonstration
+export const demoLogin = async (req, res) => {
+	if (!isDemo()) return res.status(404).json({ success: false, message: "Route introuvable." });
+	const email = demoEmailFor(req.body.role);
+	const user = email && (await User.findOne({ email }));
+	if (!user) return fail(res, "Rôle de démonstration inconnu.");
 	res.json({ success: true, token: signToken(user), user: publicUser(user) });
 };
 
@@ -74,6 +85,7 @@ export const updateMe = async (req, res) => {
 		const newEmail = String(email).trim().toLowerCase();
 		if (!EMAIL.test(newEmail)) return fail(res, "Adresse email invalide.");
 		if (newEmail !== user.email) {
+			if (isSharedDemoAccount(user.email)) return fail(res, "L'adresse d'un compte de démonstration ne peut pas être modifiée.", 403);
 			if (!currentPassword || !(await bcrypt.compare(currentPassword, user.password))) {
 				return fail(res, "Pour changer d'adresse email, saisissez votre mot de passe actuel.", 403);
 			}
@@ -92,6 +104,7 @@ export const changePassword = async (req, res) => {
 
 	const user = await User.findById(req.user.id).select("+password");
 	if (!user) return res.status(404).json({ success: false, message: "Utilisateur introuvable." });
+	if (isSharedDemoAccount(user.email)) return fail(res, "Le mot de passe d'un compte de démonstration ne peut pas être modifié.", 403);
 	if (!currentPassword || !(await bcrypt.compare(currentPassword, user.password))) {
 		return fail(res, "Le mot de passe actuel est incorrect.", 403);
 	}
@@ -110,7 +123,7 @@ export const forgotPassword = async (req, res) => {
 	};
 
 	const user = await User.findOne({ email }).select("+passwordResetRequestedAt");
-	if (!user || user.active === false) return res.json(generic);
+	if (!user || user.active === false || isSharedDemoAccount(user.email)) return res.json(generic);
 
 	// Une demande par minute et par compte au maximum
 	if (user.passwordResetRequestedAt && Date.now() - user.passwordResetRequestedAt.getTime() < 60 * 1000) {
@@ -133,7 +146,8 @@ export const forgotPassword = async (req, res) => {
 	} catch (error) {
 		console.error("Envoi de l'email de réinitialisation impossible :", error.message);
 	}
-	res.json(generic);
+	// En démo, aucun email ne part vraiment : le lien est renvoyé pour être affiché à l'écran
+	res.json(isDemo() ? { ...generic, demoLink: link } : generic);
 };
 
 // Choisir un nouveau mot de passe avec le lien reçu par email (valable une heure, une seule fois)

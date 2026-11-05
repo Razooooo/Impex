@@ -124,6 +124,49 @@ export const assignAppointment = async (req, res) => {
 	res.json({ success: true, appointment: await appointment.populate(populate) });
 };
 
+// Admin : change la date d'un rendez-vous (en attente ou confirmé) sans l'annuler.
+// Le nouveau créneau doit être réellement disponible. Si le mécanicien assigné n'est pas libre à la nouvelle date
+// (absent, ou déjà pris), le rendez-vous lui est retiré et repasse « en attente » : l'admin choisira un autre mécanicien.
+export const rescheduleAppointment = async (req, res) => {
+	const appointment = await Appointment.findById(req.params.id);
+	if (!appointment) return res.status(404).json({ success: false, message: "Rendez-vous introuvable." });
+	if (!["pending", "confirmed"].includes(appointment.status)) {
+		return res.status(400).json({ success: false, message: "Seul un rendez-vous en attente ou confirmé peut être reprogrammé." });
+	}
+
+	const start = new Date(req.body.scheduledAt);
+	if (!req.body.scheduledAt || Number.isNaN(start.getTime()) || start < new Date()) {
+		return res.status(400).json({ success: false, message: "La nouvelle date doit être dans le futur." });
+	}
+	if (start.getTime() === appointment.scheduledAt.getTime()) {
+		return res.status(400).json({ success: false, message: "Choisissez une date différente de l'actuelle." });
+	}
+
+	const minutes = appointment.estimatedMinutes || 60;
+	if (!(await isSlotAvailable(start, minutes, appointment._id))) {
+		return res.status(409).json({ success: false, message: "Ce créneau n'est pas disponible. Choisissez une autre heure." });
+	}
+
+	let released = null;
+	if (appointment.assignedMechanic) {
+		const mechanic = await User.findById(appointment.assignedMechanic);
+		const unavailable =
+			!mechanic ||
+			mechanic.active === false ||
+			(await findUnavailability(mechanic._id, toGarageDate(start))) ||
+			(await findConflict(mechanic._id, start, minutes, appointment._id));
+		if (unavailable) {
+			released = mechanic ? `${mechanic.firstName} ${mechanic.lastName}` : "Le mécanicien";
+			appointment.assignedMechanic = undefined;
+			appointment.status = "pending";
+		}
+	}
+
+	appointment.scheduledAt = start;
+	await appointment.save();
+	res.json({ success: true, released, appointment: await appointment.populate(populate) });
+};
+
 // Admin ou mécano assigné : note sur l'intervention (visible par le client)
 export const updateNotes = async (req, res) => {
 	const notes = String(req.body.mechanicNotes ?? "").trim();

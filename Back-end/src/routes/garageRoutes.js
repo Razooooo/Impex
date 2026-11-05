@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { isDemo } from "../utils/demo.js";
 import { MIN_LEAD_MINUTES, OPENING_HOURS, SLOT_MINUTES, UTC_OFFSET_MINUTES } from "../config/garage.js";
 
 const router = Router();
@@ -11,6 +12,7 @@ router.get("/", (_req, res) => {
 		slotMinutes: SLOT_MINUTES,
 		minLeadMinutes: MIN_LEAD_MINUTES,
 		utcOffsetMinutes: UTC_OFFSET_MINUTES,
+		demo: isDemo(),
 	});
 });
 

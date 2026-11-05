@@ -1,63 +1,64 @@
-# IMPEX – Prise de rendez-vous pour garage Land Rover
+# IMPEX, rendez-vous pour garage Land Rover
 
-Application web de prise de rendez-vous pour **IMPEX**, garage spécialisé Land Rover et mécanique générale à Antananarivo. Les clients réservent une prestation (diagnostic, entretien, freinage, suspension…) pour leur véhicule ; le garage planifie, assigne un mécanicien et suit l'avancement.
+Application web de prise de rendez-vous pour IMPEX, garage Land Rover et mécanique générale à Antananarivo.
+
+Le client choisit une prestation pour son véhicule et une heure disponible. Le garage confirme, assigne un mécanicien et suit l'avancement jusqu'à la fin de l'intervention.
 
 ## Sommaire
 
-- [Stack](#stack)
+- [Technologies](#technologies)
 - [Fonctionnalités](#fonctionnalités)
-- [Démarrage rapide](#démarrage-rapide)
+- [Démarrage](#démarrage)
 - [Comptes de démonstration](#comptes-de-démonstration)
-- [Structure du projet](#structure-du-projet)
+- [Structure](#structure)
+- [Règles de gestion](#règles-de-gestion)
 - [API](#api)
 - [Configuration](#configuration)
-- [Développement sans Docker](#développement-sans-docker)
-- [Consulter la base avec MongoDB Compass](#consulter-la-base-avec-mongodb-compass)
-- [Feuille de route](#feuille-de-route)
+- [Tests](#tests)
+- [Sécurité](#sécurité)
+- [Mode démo](#mode-démo)
+- [Mise en ligne](#mise-en-ligne)
+- [Lancer sans Docker](#lancer-sans-docker)
+- [Voir la base avec Compass](#voir-la-base-avec-compass)
+- [Reste à faire](#reste-à-faire)
 
-## Stack
+## Technologies
 
-| Couche   | Technologies                                          |
-| -------- | ----------------------------------------------------- |
-| Front    | Vue 3, Vite, Pinia, Vue Router, Tailwind CSS 4, Axios |
-| Back     | Node.js, Express 5, Mongoose, JWT, bcryptjs, Nodemailer |
-| Données  | MongoDB 7                                             |
-| Outillage | Docker Compose, pnpm, Mailpit (boîte mail de développement) |
+| Partie  | Outils                                      |
+| ------- | ------------------------------------------- |
+| Front   | Vue 3, Vite, Pinia, Vue Router, Tailwind 4  |
+| Back    | Node.js, Express 5, Mongoose, JWT           |
+| Base    | MongoDB 7                                   |
+| Outils  | Docker Compose, pnpm, Mailpit               |
 
 ## Fonctionnalités
 
-### Rôles
+Trois rôles, chacun avec son espace.
 
-| Rôle     | Peut faire                                                                                   |
-| -------- | -------------------------------------------------------------------------------------------- |
-| `client` | Gérer ses véhicules, prendre ou annuler un rendez-vous, suivre son statut                    |
-| `admin`  | Voir tous les rendez-vous, assigner un mécanicien, ajuster le temps estimé, gérer services et personnel |
-| `mecano` | Voir ses tâches assignées, les démarrer ou les terminer, ajouter des notes                   |
+| Rôle     | Ce qu'il fait                                          |
+| -------- | ------------------------------------------------------ |
+| `client` | Gère ses véhicules, prend et annule des rendez-vous    |
+| `admin`  | Planifie, assigne, gère services, équipe et absences   |
+| `mecano` | Voit ses interventions, les démarre, les termine       |
 
-### État d'avancement
+Côté client :
+- ajout, modification et suppression de véhicules
+- réservation guidée : zone du véhicule, ou « Je ne sais pas » avec les symptômes
+- créneaux réellement libres, calculés selon la durée de la prestation
+- suivi de l'avancement et notes du mécanicien
 
-| Élément                                           | État        |
-| ------------------------------------------------- | ----------- |
-| Page de présentation IMPEX                        | Terminé     |
-| Connexion / inscription (fenêtre unique)          | Terminé     |
-| API complète (auth, services, véhicules, rdv)     | Terminé     |
-| Espace admin : demandes, assignation, durée, démarrage / fin | Terminé |
-| Espace admin : équipe (mécaniciens, administrateurs) | Terminé  |
-| Espace admin : gestion des services (ajout, modification, activation) | Terminé |
-| Interdiction des chevauchements d'un même mécanicien | Terminé |
-| Espace mécanicien : interventions du jour, démarrer / terminer, notes | Terminé |
-| Espace client : véhicules, rendez-vous, annulation | Terminé    |
-| Créneaux réellement disponibles (mécaniciens, durée, rendez-vous déjà pris) | Terminé |
-| Absences des mécaniciens et fermetures du garage (jours fériés, inventaire) | Terminé |
-| Espace admin : calendrier (vue jour par mécanicien, vue semaine) | Terminé |
-| Mon compte : modifier ses informations, changer son mot de passe | Terminé |
-| Mot de passe oublié (lien par email) | Terminé |
-| Désactiver / réactiver un membre de l'équipe | Terminé |
-| Choix guidé de la prestation (zones, « Je ne sais pas » avec symptômes) | Terminé |
+Côté admin :
+- liste des demandes, assignation d'un mécanicien, durée estimée
+- reprogrammation d'un rendez-vous
+- calendrier par jour (un mécanicien par colonne) et par semaine
+- absences des mécaniciens et fermetures du garage
+- gestion des services et de l'équipe (ajout, modification, désactivation)
 
-## Démarrage rapide
+Pour tous les comptes : page « Mon compte », changement de mot de passe et mot de passe oublié par email.
 
-Prérequis : [Docker Desktop](https://www.docker.com/products/docker-desktop/) démarré.
+## Démarrage
+
+Docker Desktop doit être lancé.
 
 ```bash
 docker compose up --build
@@ -69,161 +70,248 @@ Dans un second terminal, une seule fois, pour créer les comptes et services de 
 docker compose exec backend pnpm seed
 ```
 
-Le seed peut être relancé sans risque après une mise à jour : il n'ajoute que ce qui manque (par exemple un nouveau service) et ne modifie pas les données existantes.
+Le seed peut être relancé sans risque : il ajoute ce qui manque et ne touche pas aux données existantes.
 
-| Service  | Adresse                            |
-| -------- | ---------------------------------- |
-| Site     | http://localhost:5173              |
-| API      | http://localhost:3000/api/health   |
-| MongoDB  | `mongodb://localhost:27017`        |
-| Emails de développement (Mailpit) | http://localhost:8025 |
+| Service   | Adresse                          |
+| --------- | -------------------------------- |
+| Site      | http://localhost:5173            |
+| API       | http://localhost:3000/api/health |
+| MongoDB   | mongodb://localhost:27017        |
+| Mailpit   | http://localhost:8025            |
 
-Mailpit capte tous les emails envoyés par l'API (par exemple le lien « mot de passe oublié ») sans rien envoyer pour de vrai : ouvrez son interface pour les lire.
+Mailpit est une fausse boîte mail de développement. Il reçoit les emails de l'API (le lien « mot de passe oublié », par exemple) sans rien envoyer pour de vrai.
 
 Au quotidien :
 
 ```bash
-docker compose up -d      # démarrer en arrière-plan
-docker compose down       # arrêter (les données sont conservées)
+docker compose up -d
+docker compose down
 ```
 
-Le code est monté en volume : le front se recharge à chaque modification et le back redémarre via `nodemon` (lancé avec `-L`, nécessaire pour détecter les changements sous Windows). En développement sous Docker, si un style manque après l'ajout d'un nouveau fichier du front (marges absentes, par exemple), `docker compose restart frontend` suffit. Un `--build` n'est nécessaire que si un `Dockerfile` ou les dépendances changent :
+Le code est monté en volume : le front se recharge tout seul et le back redémarre avec nodemon. Un `--build` n'est utile que si un `Dockerfile` ou les dépendances changent :
 
 ```bash
 docker compose up -d --build -V
 ```
 
+Si un style manque après l'ajout d'un nouveau fichier du front, `docker compose restart frontend` suffit.
+
 ## Comptes de démonstration
 
-Créés par `pnpm seed`. Mot de passe : `Password123!` (modifiable avec la variable `SEED_PASSWORD`).
+Créés par le seed. Mot de passe : `Password123!` (variable `SEED_PASSWORD` pour le changer).
 
-| Rôle   | Email                |
-| ------ | -------------------- |
-| admin  | `admin@garage.local` |
-| mecano | `marc@garage.local`  |
+| Rôle   | Email                 |
+| ------ | --------------------- |
+| admin  | `admin@garage.local`  |
+| mecano | `marc@garage.local`   |
 | mecano | `sophie@garage.local` |
 
-> Ces comptes sont réservés au développement. Ne les utilisez jamais en production.
+Ces comptes servent au développement uniquement. Les clients créent leur compte depuis le site.
 
-Les comptes clients se créent depuis le site (« Connexion » puis « Créer un compte »).
-
-## Structure du projet
+## Structure
 
 ```
 .
 ├── docker-compose.yml
 ├── Back-end/
-│   └── src/
-│       ├── config/          connexion MongoDB, horaires et fuseau du garage
-│       ├── controllers/     logique métier
-│       ├── middlewares/     authentification, rôles, erreurs
-│       ├── models/          User, Vehicle, Service, Appointment
-│       ├── routes/          routes de l'API
-│       ├── scripts/         seed.js
-│       ├── utils/           availability.js (créneaux disponibles), garageTime.js (heures du garage),
-│       │                    mailer.js (emails), appointmentSummary.js
-│       ├── app.js
-│       └── server.js
+│   ├── src/
+│   │   ├── config/        base de données, horaires du garage
+│   │   ├── controllers/   logique métier
+│   │   ├── middlewares/   authentification, rôles, sécurité, erreurs
+│   │   ├── models/        User, Vehicle, Service, Appointment, TimeOff
+│   │   ├── routes/        routes de l'API
+│   │   ├── scripts/       seed.js
+│   │   ├── utils/         créneaux, heures du garage, emails
+│   │   ├── app.js
+│   │   └── server.js
+│   └── tests/             tests automatiques
 └── frontend/
-    ├── public/images/       photos des modèles
+    ├── public/images/     photos des modèles
     └── src/
-        ├── components/      BaseModal (fenêtre générique), AuthModal (connexion / inscription),
-        │                    VehicleModal, AppointmentModal, StaffModal, ServiceModal,
-        │                    AdminAppointmentCard, MechanicTaskCard
-        ├── data/            contenu de la page de présentation, horaires d'ouverture, photos des modèles
-        ├── directives/      v-reveal (animations au scroll)
-        ├── lib/             api (Axios), format (dates, durées, créneaux), categories (zones, symptômes), modalStack
-        ├── router/          routes et protection par rôle
-        ├── stores/          Pinia : auth, ui
-        └── views/           HomeView, ClientDashboard, AdminDashboard, MechanicDashboard
+        ├── components/    fenêtres, cartes
+        ├── data/          contenu de la page d'accueil
+        ├── lib/           API, formats de dates, catégories
+        ├── router/        routes et accès par rôle
+        ├── stores/        Pinia (auth, ui)
+        └── views/         une page par espace
 ```
 
-### Modèle de données
+### Données
 
-- **User** : prénom, nom, email, mot de passe haché, téléphone, rôle.
-- **Vehicle** : propriétaire, modèle Land Rover, année, plaque, VIN, motorisation, kilométrage.
-- **Service** : nom, catégorie (zone), durée estimée par défaut, actif ou non, et `forUnknownProblem` pour le service « Diagnostic général » proposé au client qui ne sait pas ce qui ne va pas.
-- **TimeOff** : fermeture du garage ou absence d'un mécanicien (dates de début et de fin incluses, motif).
-- **Appointment** : client, véhicule, service, date, statut, mécanicien assigné, temps estimé, notes du client (dont les symptômes cochés) et du mécanicien.
+- **User** : nom, email, mot de passe haché, téléphone, rôle, actif ou non
+- **Vehicle** : propriétaire, modèle, année, plaque, VIN, motorisation, kilométrage
+- **Service** : nom, zone, durée par défaut, actif ou non
+- **TimeOff** : fermeture du garage ou absence d'un mécanicien, par jours entiers
+- **Appointment** : client, véhicule, service, date, statut, mécanicien, durée, notes
 
-Statuts d'un rendez-vous : `pending` → `confirmed` → `in_progress` → `done` (ou `cancelled`).
+Statuts d'un rendez-vous : `pending`, `confirmed`, `in_progress`, `done`, ou `cancelled`.
 
-Règles métier :
-- Un créneau n'est proposé (et accepté à la réservation) que si l'intervention se termine avant la fermeture et qu'il reste au moins un mécanicien libre pendant toute sa durée. Les demandes encore en attente comptent comme occupant un mécanicien, pour ne jamais promettre plus que ce que le garage peut tenir. Le serveur revérifie le créneau à la création du rendez-vous.
-- Une **fermeture du garage** ou l'**absence d'un mécanicien** (journées entières, motif facultatif) retire aussitôt les créneaux concernés : un mécanicien absent n'est plus compté comme disponible, un jour de fermeture n'est plus réservable (le motif est affiché au client) et assigner un mécanicien absent est refusé. Les rendez-vous déjà pris sur la période ne sont pas annulés automatiquement : l'admin en reçoit la liste pour les réassigner ou les refuser.
-- Un **compte désactivé** ne peut plus se connecter, et ses sessions déjà ouvertes sont refusées aussitôt. Il n'est plus compté dans les créneaux ni proposé à l'assignation, mais son historique est conservé. Ses interventions à venir restent à réassigner : elles occupent une place dans les créneaux tant qu'elles ne le sont pas. On ne peut pas désactiver son propre compte.
-- **Mots de passe** : changer son mot de passe (ou le réinitialiser) ferme toutes les autres sessions. Le lien « mot de passe oublié » est valable une heure, utilisable une seule fois, et n'est stocké que sous forme d'empreinte. La réponse de l'API est la même que l'adresse existe ou non, et une seule demande par minute est prise en compte par compte.
-- Les horaires d'ouverture, le pas entre deux créneaux (30 min), le délai minimum avant un rendez-vous (1 h) et le fuseau du garage (Antananarivo, UTC+3) sont définis dans `Back-end/src/config/garage.js`. Toutes les heures s'affichent à l'heure du garage, quel que soit le fuseau du navigateur.
-- Assigner un mécanicien passe un rendez-vous `pending` en `confirmed`.
-- L'assignation est refusée si le mécanicien a déjà une intervention (confirmée ou en cours) qui chevauche le créneau, durée estimée comprise.
-- Un rendez-vous ne peut pas passer `in_progress` sans mécanicien assigné.
-- Un client ne peut annuler son rendez-vous que tant qu'il est `pending` ou `confirmed`, et ne peut pas supprimer un véhicule qui a un rendez-vous à venir.
-- Un mécanicien ne voit que les rendez-vous qui lui sont assignés, et seulement le nom du client (pas ses coordonnées). Il peut les faire avancer (`confirmed` → `in_progress` → `done`) et rédiger une note, mais pas annuler, sauter une étape ni rouvrir une intervention.
+## Règles de gestion
+
+Créneaux
+- Un créneau est proposé si l'intervention finit avant la fermeture et si un mécanicien reste libre pendant toute sa durée.
+- Les demandes en attente comptent déjà comme une place prise, pour ne pas promettre plus que le garage ne peut faire.
+- Le serveur revérifie le créneau au moment de la réservation.
+- Horaires, pas de 30 minutes, délai minimum d'une heure et fuseau (UTC+3) : `Back-end/src/config/garage.js`.
+
+Absences et fermetures
+- Un jour de fermeture n'est plus réservable et son motif est affiché au client.
+- Un mécanicien absent n'est plus compté, et on ne peut pas lui assigner d'intervention.
+- Les rendez-vous déjà pris sur la période ne sont pas annulés. L'admin reçoit la liste pour les réassigner ou les refuser.
+
+Rendez-vous
+- Assigner un mécanicien confirme le rendez-vous.
+- L'assignation est refusée si le mécanicien a déjà une intervention qui chevauche le créneau.
+- Un rendez-vous ne démarre pas sans mécanicien.
+- Reprogrammer exige un créneau libre. Si le mécanicien assigné n'est pas disponible à la nouvelle date, il est retiré et le rendez-vous repasse en attente.
+- Un client annule tant que le rendez-vous est en attente ou confirmé. Il ne peut pas supprimer un véhicule qui a un rendez-vous à venir.
+- Un mécanicien ne voit que ses interventions et le nom du client. Il les fait avancer d'une étape à la fois et peut écrire une note.
+
+Comptes
+- Un compte désactivé ne peut plus se connecter, même avec une session ouverte. Son historique reste, et ses interventions à venir sont à réassigner.
+- Changer ou réinitialiser son mot de passe ferme les autres sessions.
+- Le lien « mot de passe oublié » dure une heure et ne sert qu'une fois. La réponse de l'API est la même que l'adresse existe ou non.
 
 ## API
 
-Toutes les routes sont préfixées par `/api`. Les routes protégées attendent l'en-tête `Authorization: Bearer <token>`.
+Toutes les routes commencent par `/api`. Les routes protégées demandent l'en-tête `Authorization: Bearer <token>`.
 
-| Méthode | Route                          | Accès                                    |
-| ------- | ------------------------------ | ---------------------------------------- |
-| GET     | `/health`                      | public                                   |
-| POST    | `/auth/register`               | public (crée toujours un `client`)       |
-| POST    | `/auth/login`                  | public                                   |
-| POST    | `/auth/forgot-password`        | public (envoie un lien par email ; réponse identique que le compte existe ou non) |
-| POST    | `/auth/reset-password`         | public (avec le jeton reçu par email)    |
-| GET     | `/auth/me`                     | connecté                                 |
-| PATCH   | `/auth/me`                     | connecté (nom, téléphone ; l'email demande le mot de passe actuel) |
-| PATCH   | `/auth/password`               | connecté (ferme les autres sessions)     |
-| GET     | `/services`                    | public (services actifs)                 |
-| GET     | `/services/all`                | admin (y compris les services désactivés) |
-| POST    | `/services`                    | admin                                    |
-| PATCH   | `/services/:id`                | admin                                    |
-| GET     | `/availability?date=&serviceId=` | client (créneaux du jour pour une prestation, et prochain créneau libre si le jour est complet ou fermé) |
-| GET     | `/garage`                      | public (horaires d'ouverture, pas des créneaux, fuseau) |
-| GET     | `/timeoff`                     | admin (absences et fermetures en cours ou à venir) |
-| POST    | `/timeoff`                     | admin (déclare une absence ou une fermeture ; renvoie les rendez-vous déjà pris sur la période) |
-| DELETE  | `/timeoff/:id`                 | admin                                    |
-| GET     | `/vehicles/models`             | client (liste des modèles acceptés)      |
-| GET     | `/vehicles`                    | client                                   |
-| POST    | `/vehicles`                    | client                                   |
-| PATCH   | `/vehicles/:id`                | client                                   |
-| DELETE  | `/vehicles/:id`                | client                                   |
-| GET     | `/appointments`                | selon le rôle (client : les siens, mécano : les siens assignés, admin : tous) |
-| POST    | `/appointments`                | client                                   |
-| PATCH   | `/appointments/:id/assign`     | admin                                    |
-| PATCH   | `/appointments/:id/status`     | admin, mécano assigné (confirmé → en cours → terminé uniquement), client (annulation) |
-| PATCH   | `/appointments/:id/notes`      | admin, mécano assigné (note visible par le client) |
-| GET     | `/users/mechanics`             | admin                                    |
-| GET     | `/users/staff`                 | admin (mécaniciens et administrateurs)   |
-| POST    | `/users/staff`                 | admin (crée un mécano ou un admin)       |
-| PATCH   | `/users/staff/:id/active`      | admin (désactive ou réactive ; renvoie les interventions à réassigner) |
+| Méthode | Route                          | Accès               |
+| ------- | ------------------------------ | ------------------- |
+| GET     | `/health`                      | public              |
+| POST    | `/auth/register`               | public              |
+| POST    | `/auth/login`                  | public              |
+| POST    | `/auth/forgot-password`        | public              |
+| POST    | `/auth/reset-password`         | public              |
+| GET     | `/auth/me`                     | connecté            |
+| PATCH   | `/auth/me`                     | connecté            |
+| PATCH   | `/auth/password`               | connecté            |
+| GET     | `/services`                    | public              |
+| GET     | `/services/all`                | admin               |
+| POST    | `/services`                    | admin               |
+| PATCH   | `/services/:id`                | admin               |
+| GET     | `/availability`                | client, admin       |
+| GET     | `/garage`                      | public              |
+| GET     | `/timeoff`                     | admin               |
+| POST    | `/timeoff`                     | admin               |
+| DELETE  | `/timeoff/:id`                 | admin               |
+| GET     | `/vehicles/models`             | client              |
+| GET     | `/vehicles`                    | client              |
+| POST    | `/vehicles`                    | client              |
+| PATCH   | `/vehicles/:id`                | client              |
+| DELETE  | `/vehicles/:id`                | client              |
+| GET     | `/appointments`                | selon le rôle       |
+| POST    | `/appointments`                | client              |
+| PATCH   | `/appointments/:id/assign`     | admin               |
+| PATCH   | `/appointments/:id/reschedule` | admin               |
+| PATCH   | `/appointments/:id/status`     | admin, mécano, client |
+| PATCH   | `/appointments/:id/notes`      | admin, mécano       |
+| GET     | `/users/mechanics`             | admin               |
+| GET     | `/users/staff`                 | admin               |
+| POST    | `/users/staff`                 | admin               |
+| PATCH   | `/users/staff/:id`             | admin               |
+| PATCH   | `/users/staff/:id/active`      | admin               |
+
+Précisions :
+- `/auth/register` crée toujours un client.
+- `/auth/me` : le changement d'email demande le mot de passe actuel.
+- `/availability?date=AAAA-MM-JJ&serviceId=...` renvoie les créneaux du jour. Si le jour est complet ou fermé, il propose le prochain créneau libre. L'admin peut passer `appointmentId` à la place de `serviceId`, pour reprogrammer.
+- `/appointments` : le client voit les siens, le mécano ceux qui lui sont assignés, l'admin tous.
+- `/appointments/:id/status` : le mécano ne peut qu'avancer d'une étape, le client ne peut qu'annuler.
+- `/appointments/:id/notes` : la note du mécanicien est visible par le client.
+- `/timeoff` (POST) renvoie aussi les rendez-vous déjà pris sur la période.
+- `/users/staff/:id` modifie le nom, l'email et le téléphone, pas le rôle ni le mot de passe.
+- `/users/staff/:id/active` renvoie les interventions à réassigner quand on désactive un mécanicien.
 
 ## Configuration
 
-Avec Docker, tout est déjà défini dans `docker-compose.yml`. Pour un lancement sans Docker, copiez les fichiers d'exemple.
+Avec Docker, tout est déjà réglé dans `docker-compose.yml`. Sans Docker, copiez les fichiers `.env.example`.
 
-**`Back-end/.env`**
+`Back-end/.env`
 
-| Variable     | Rôle                                        | Exemple                                      |
-| ------------ | ------------------------------------------- | -------------------------------------------- |
-| `PORT`       | Port de l'API                               | `3000`                                       |
-| `MONGO_URI`  | Connexion MongoDB                           | `mongodb://localhost:27017/garage_landrover` |
-| `JWT_SECRET` | Clé de signature des tokens (à garder secrète) | une longue chaîne aléatoire               |
-| `CLIENT_URL` | Origine du front autorisée (CORS), aussi utilisée dans les liens des emails | `http://localhost:5173`      |
-| `SMTP_HOST`  | Serveur d'envoi des emails. Absent : aucun email n'est envoyé, le lien est affiché dans la console de l'API | `mailpit` (Docker), ou celui de votre fournisseur |
-| `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` | Réglages du serveur SMTP | `587`, `false`, … |
-| `MAIL_FROM`  | Expéditeur des emails                       | `IMPEX <no-reply@impex.mg>`                  |
-| `GARAGE_UTC_OFFSET_MINUTES` | Fuseau du garage (Antananarivo = UTC+3) | `180` (par défaut)                |
+| Variable                    | Rôle                                        |
+| --------------------------- | ------------------------------------------- |
+| `PORT`                      | Port de l'API (3000)                        |
+| `MONGO_URI`                 | Connexion MongoDB                           |
+| `JWT_SECRET`                | Clé de signature des sessions               |
+| `CLIENT_URL`                | Adresse du front (CORS et liens des emails) |
+| `SMTP_HOST`                 | Serveur d'envoi des emails                  |
+| `SMTP_PORT`, `SMTP_SECURE`  | Réglages du serveur SMTP                    |
+| `SMTP_USER`, `SMTP_PASS`    | Identifiants SMTP                           |
+| `MAIL_FROM`                 | Expéditeur des emails                       |
+| `GARAGE_UTC_OFFSET_MINUTES` | Fuseau du garage (180 par défaut)           |
+| `DEMO_MODE`                 | `true` pour le site de démonstration         |
+| `TRUST_PROXY`               | `1` derrière le proxy d'un hébergeur        |
 
-**`frontend/.env`**
+Sans `SMTP_HOST`, aucun email n'est envoyé et le lien de réinitialisation s'affiche dans la console de l'API. Avec Docker, `SMTP_HOST` pointe sur Mailpit.
 
-| Variable       | Rôle              | Exemple                     |
-| -------------- | ----------------- | --------------------------- |
-| `VITE_API_URL` | Adresse de l'API  | `http://localhost:3000/api` |
+En production (`NODE_ENV=production`), l'API refuse de démarrer si `JWT_SECRET` fait moins de 32 caractères ou garde sa valeur d'exemple. Pour en générer un :
 
-## Développement sans Docker
+```bash
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
 
-Il faut un MongoDB accessible (par exemple `docker compose up mongo -d`).
+`frontend/.env`
+
+| Variable       | Rôle                                      |
+| -------------- | ----------------------------------------- |
+| `VITE_API_URL` | Adresse de l'API (http://localhost:3000/api) |
+
+## Tests
+
+Les tests du back-end utilisent le lanceur intégré de Node et une base à part, `garage_landrover_test`, vidée avant chaque test. Vos données ne sont jamais touchées.
+
+```bash
+docker compose exec backend pnpm test
+```
+
+Ils vérifient :
+- le calcul des créneaux (horaires, fermetures, absences, mécaniciens désactivés, demandes en attente)
+- la reprogrammation
+- la modification d'un membre de l'équipe
+- les protections de l'API (opérateurs MongoDB refusés, essais de connexion limités, en-têtes de sécurité)
+
+Le front n'a pas encore de tests automatiques.
+
+## Sécurité
+
+- En-têtes de sécurité avec `helmet`.
+- Limites : 300 requêtes par minute et par adresse, 10 connexions échouées par 15 minutes, 20 créations de compte ou demandes de mot de passe par heure.
+- Corps de requête limité à 100 ko, clés MongoDB (`$...`) refusées, longueurs maximales sur les noms, l'email et les notes.
+- Derrière un proxy (hébergement), `TRUST_PROXY=1` fait baser la limite sur l'adresse réelle du visiteur.
+
+## Mode démo
+
+Avec `DEMO_MODE=true`, l'API se comporte comme un site de présentation :
+
+- un bandeau annonce que les données sont fictives
+- la fenêtre de connexion propose « Visiter la démo sans compte » (client, garage, mécano)
+- « mot de passe oublié » affiche le lien à l'écran, car aucun email ne part
+- les comptes de démonstration (équipe et client) sont partagés : leur mot de passe, leur adresse et leur état ne peuvent pas être modifiés
+- les données sont remises à zéro au plus une fois par jour : comptes ajoutés, véhicules, rendez-vous, services et absences sont remplacés par un jeu d'exemple
+
+Le jeu d'exemple contient un client (Camille Rakoto) avec deux véhicules et cinq rendez-vous de chaque statut, deux mécaniciens, une fermeture et une absence. Pour le recréer à la main :
+
+```bash
+docker compose exec backend pnpm seed --demo
+```
+
+Attention : cette commande efface rendez-vous, véhicules et comptes clients de la base visée. Ne la lancez que sur une base de démonstration.
+
+## Mise en ligne
+
+L'API tourne sur Render, le site sur Vercel, la base sur MongoDB Atlas. Les trois ont une offre gratuite.
+
+1. **Atlas** : créer un cluster gratuit, un utilisateur de base de données, autoriser l'accès réseau `0.0.0.0/0`, puis copier la chaîne de connexion (en ajoutant le nom de la base, par exemple `/garage_landrover`).
+2. **Render** : nouveau « Blueprint » à partir de ce dépôt (il lit `render.yaml`). Renseigner `MONGO_URI` avec la chaîne Atlas. `CLIENT_URL` se remplit à l'étape 4.
+3. **Vercel** : importer le dépôt, dossier racine `frontend`, preset Vite. Ajouter la variable `VITE_API_URL` avec l'adresse de l'API Render suivie de `/api`.
+4. Revenir sur Render, mettre l'adresse du site Vercel dans `CLIENT_URL` (sans `/` final), puis redéployer.
+
+Sur l'offre gratuite de Render, l'API s'endort après un moment sans visite : la première requête prend environ 30 secondes. La base de démonstration se crée toute seule au premier démarrage.
+
+## Lancer sans Docker
+
+Il faut un MongoDB accessible, par exemple avec `docker compose up mongo -d`.
 
 ```bash
 # API
@@ -231,8 +319,10 @@ cd Back-end
 cp .env.example .env
 pnpm install
 pnpm dev
+```
 
-# Site (dans un autre terminal)
+```bash
+# Site, dans un autre terminal
 cd frontend
 cp .env.example .env
 pnpm install
@@ -241,43 +331,24 @@ pnpm dev
 
 Pour les données de démonstration : `pnpm seed` dans `Back-end`.
 
-## Consulter la base avec MongoDB Compass
+## Voir la base avec Compass
 
-1. Ouvrir Compass puis **Add new connection**.
+1. Ouvrir Compass, puis « Add new connection ».
 2. URI : `mongodb://localhost:27017`
-3. Se connecter : la base `garage_landrover` contient les collections `users`, `services`, `vehicles` et `appointments`.
+3. La base `garage_landrover` contient les collections `users`, `services`, `vehicles`, `appointments` et `timeoffs`.
 
-La base n'apparaît qu'après la première écriture (lancer le seed ou créer un compte).
+La base n'apparaît qu'après une première écriture (seed ou création de compte).
 
-## Feuille de route
+## Reste à faire
 
-**Priorité 1 : rendre la réservation utilisable**
-- [x] Espace client : gestion des véhicules (ajout, liste, suppression)
-- [x] Espace client : formulaire de rendez-vous (véhicule, prestation, date, description du problème)
-- [x] Annulation d'un rendez-vous depuis l'espace client
-
-**Priorité 2 : planification côté garage**
-- [x] Créneaux réellement disponibles (durée de la prestation, mécaniciens libres, demandes en attente comprises)
-- [x] Congés et absences des mécaniciens, jours fériés et fermetures exceptionnelles du garage
-- [ ] Absences sur une demi-journée ou quelques heures (aujourd'hui, une absence couvre des journées entières)
-- [ ] Reprogrammer un rendez-vous (changer sa date) depuis l'espace admin, par exemple quand une fermeture le touche
-- [x] Éviter les chevauchements d'un même mécanicien (refusés à l'assignation)
-- [x] Gestion des services et du personnel depuis l'espace admin
-- [x] Espace mécanicien dans le même style (interventions du jour, notes)
-- [x] Vue calendrier du planning admin
-- [x] Désactiver ou réactiver un membre de l'équipe
-- [ ] Modifier les informations d'un membre de l'équipe depuis l'espace admin
-- [ ] Temps réel passé par rapport au temps estimé
-
-**Priorité 3 : suivi et communication**
-- [ ] Notifications de confirmation et de rappel (email, SMS ou WhatsApp), à prévoir quand un fournisseur d'envoi sera choisi
+- [ ] Absences sur une demi-journée ou quelques heures
+- [ ] Temps réellement passé par rapport au temps estimé
+- [ ] Notifications de confirmation et de rappel (email, SMS ou WhatsApp)
 - [ ] Historique d'entretien par véhicule
 - [ ] Notes et photos du mécanicien
-
-**Qualité et mise en production**
-- [ ] Validation des entrées côté API, limitation de débit sur la connexion, en-têtes de sécurité
-- [ ] Vérification de l'adresse email à l'inscription, et suppression de son compte par le client
-- [ ] Configurer un vrai serveur SMTP (le front et l'API sont prêts : il suffit de renseigner `SMTP_*`)
-- [ ] Tests automatisés et documentation OpenAPI
-- [ ] Vraies coordonnées, photos et textes sur la page de présentation
-- [ ] Image Docker de production, base hébergée, nom de domaine et HTTPS
+- [ ] Vérification de l'email à l'inscription, suppression de compte par le client
+- [ ] Vrai serveur SMTP : il suffit de renseigner `SMTP_*`
+- [ ] Validation des entrées par schémas
+- [ ] Tests du front et documentation OpenAPI
+- [ ] Vraies coordonnées, photos et textes sur la page d'accueil
+- [ ] Image Docker de production, base hébergée, domaine et HTTPS

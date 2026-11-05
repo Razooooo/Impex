@@ -27,6 +27,11 @@ const notice = ref("")
 const tab = ref("appointments")
 const filter = ref("pending")
 const showStaff = ref(false)
+const editingMember = ref(null) // membre en cours de modification (null = ajout)
+function openStaff(member = null) {
+  editingMember.value = member
+  showStaff.value = true
+}
 const showService = ref(false)
 const editingService = ref(null)
 const showTimeOff = ref(false)
@@ -193,9 +198,10 @@ async function setStaffActive(member, active) {
 }
 
 async function onStaffSaved(user) {
+  const edited = !!editingMember.value
   showStaff.value = false
   await load()
-  flash(`${user.firstName} ${user.lastName} a été ajouté à l'équipe.`)
+  flash(edited ? `Les informations de ${user.firstName} ${user.lastName} ont été mises à jour.` : `${user.firstName} ${user.lastName} a été ajouté à l'équipe.`)
 }
 
 // ---- Services ----
@@ -319,7 +325,7 @@ const tabs = computed(() => [
         </button>
       </div>
 
-      <button v-if="tab === 'team'" class="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-ink" @click="showStaff = true">
+      <button v-if="tab === 'team'" class="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-ink" @click="openStaff()">
         <Plus :size="16" /> Ajouter un membre
       </button>
       <button v-if="tab === 'services'" class="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-paper transition hover:bg-ink" @click="openService()">
@@ -410,7 +416,8 @@ const tabs = computed(() => [
             </li>
           </ul>
 
-          <div class="mt-4 border-t border-ink/10 pt-3 text-right">
+          <div class="mt-4 flex items-center justify-between border-t border-ink/10 pt-3">
+            <button class="rounded-lg px-3 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-ink/5 hover:text-ink" @click="openStaff(m)">Modifier</button>
             <button
               class="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
               :class="confirmingStaffId === m._id ? 'bg-red-100 text-red-800' : 'text-ink/50 hover:bg-ink/5 hover:text-ink'"
@@ -430,8 +437,9 @@ const tabs = computed(() => [
             <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-paper">{{ initials(u) }}</span>
             {{ u.firstName }} {{ u.lastName }}
             <span v-if="u._id === auth.user.id" class="rounded-full bg-ink/[0.06] px-2 py-0.5 text-[11px] font-semibold text-ink/60">Vous</span>
+            <button class="rounded-full px-2.5 py-1 text-[11px] font-semibold text-ink/45 transition hover:bg-ink/5 hover:text-ink" @click="openStaff(u)">Modifier</button>
             <button
-              v-else
+              v-if="u._id !== auth.user.id"
               class="rounded-full px-2.5 py-1 text-[11px] font-semibold transition"
               :class="confirmingStaffId === u._id ? 'bg-red-100 text-red-800' : 'text-ink/45 hover:bg-ink/5 hover:text-ink'"
               @click="setStaffActive(u, false)"
@@ -509,7 +517,7 @@ const tabs = computed(() => [
       </ul>
     </BaseModal>
 
-    <StaffModal :open="showStaff" @close="showStaff = false" @saved="onStaffSaved" />
+    <StaffModal :open="showStaff" :member="editingMember" @close="showStaff = false" @saved="onStaffSaved" />
     <ServiceModal :open="showService" :service="editingService" @close="showService = false" @saved="onServiceSaved" />
   </div>
 </template>

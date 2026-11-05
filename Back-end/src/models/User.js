@@ -4,14 +4,16 @@ export const ROLES = ["client", "mecano", "admin"];
 
 const userSchema = new mongoose.Schema(
 	{
-		firstName: { type: String, required: [true, "Le prénom est obligatoire"], trim: true },
-		lastName: { type: String, required: [true, "Le nom est obligatoire"], trim: true },
+		firstName: { type: String, required: [true, "Le prénom est obligatoire"], trim: true, maxlength: [60, "Le prénom est trop long"] },
+		lastName: { type: String, required: [true, "Le nom est obligatoire"], trim: true, maxlength: [60, "Le nom est trop long"] },
 		email: {
 			type: String,
 			required: [true, "L'email est obligatoire"],
 			unique: true,
 			lowercase: true,
 			trim: true,
+			maxlength: [120, "L'email est trop long"],
+			match: [/^\S+@\S+\.\S+$/, "Adresse email invalide"],
 		},
 		password: {
 			type: String,
@@ -19,7 +21,7 @@ const userSchema = new mongoose.Schema(
 			minlength: [8, "Le mot de passe doit faire au moins 8 caractères"],
 			select: false,
 		},
-		phone: { type: String, trim: true },
+		phone: { type: String, trim: true, maxlength: [30, "Le téléphone est trop long"] },
 		// client = prend des rdv, mecano = réalise les tâches, admin = planifie et assigne
 		role: { type: String, enum: ROLES, default: "client" },
 		// Un compte désactivé ne peut plus se connecter, mais son historique est conservé.

@@ -10,7 +10,7 @@ const appointmentSchema = new mongoose.Schema(
 		scheduledAt: { type: Date, required: [true, "La date du rendez-vous est obligatoire"], index: true },
 		status: { type: String, enum: APPOINTMENT_STATUSES, default: "pending", index: true },
 		// Description du problème par le client
-		customerNotes: { type: String, trim: true },
+		customerNotes: { type: String, trim: true, maxlength: [1000, "La description est trop longue (1000 caractères maximum)"] },
 		// Renseignés par l'admin
 		assignedMechanic: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
 		estimatedMinutes: { type: Number, min: 5 }, // par défaut : durée du service

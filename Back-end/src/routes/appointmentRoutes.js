@@ -3,6 +3,7 @@ import {
 	assignAppointment,
 	createAppointment,
 	listAppointments,
+	rescheduleAppointment,
 	updateNotes,
 	updateStatus,
 } from "../controllers/appointmentController.js";
@@ -14,6 +15,7 @@ router.use(protect);
 router.get("/", listAppointments);
 router.post("/", restrictTo("client"), createAppointment);
 router.patch("/:id/assign", restrictTo("admin"), assignAppointment);
+router.patch("/:id/reschedule", restrictTo("admin"), rescheduleAppointment);
 router.patch("/:id/notes", restrictTo("admin", "mecano"), updateNotes);
 router.patch("/:id/status", updateStatus);
 

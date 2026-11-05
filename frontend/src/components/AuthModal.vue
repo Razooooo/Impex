@@ -23,6 +23,7 @@ const form = reactive(blank())
 const error = ref("")
 const loading = ref(false)
 const sent = ref(false) // « mot de passe oublié » : la demande a été envoyée
+const demoLink = ref("") // en démo, aucun email ne part : le lien est affiché ici
 const panel = ref(null)
 
 const focusFirst = () => nextTick(() => panel.value?.querySelector("input")?.focus())
@@ -32,12 +33,14 @@ watch(isOpen, (open) => {
   else {
     Object.assign(form, blank())
     sent.value = false
+    demoLink.value = ""
   }
 })
 // On garde l'email saisi quand on passe de la connexion à « mot de passe oublié »
 watch(mode, () => {
   error.value = ""
   sent.value = false
+  demoLink.value = ""
   Object.assign(form, { password: "", confirm: "" })
   focusFirst()
 })
@@ -79,7 +82,8 @@ async function submit() {
       ui.closeAuth()
       router.push(homeFor(auth.role))
     } else if (isForgot.value) {
-      await api("/auth/forgot-password", { method: "POST", body: { email: form.email } })
+      const res = await api("/auth/forgot-password", { method: "POST", body: { email: form.email } })
+      demoLink.value = res.demoLink ?? ""
       sent.value = true
     } else {
       await api("/auth/reset-password", { method: "POST", body: { token: ui.resetToken, password: form.password } })
@@ -87,6 +91,21 @@ async function submit() {
       ui.openAuth("login", "Mot de passe modifié. Vous pouvez vous connecter.")
       if (router.currentRoute.value.name === "reset") router.replace("/")
     }
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    loading.value = false
+  }
+}
+
+// Démo : connexion en un clic avec un compte de démonstration
+async function demoLogin(role) {
+  error.value = ""
+  loading.value = true
+  try {
+    auth.setSession(await api("/auth/demo", { method: "POST", body: { role } }))
+    ui.closeAuth()
+    router.push(homeFor(auth.role))
   } catch (e) {
     error.value = e.message
   } finally {
@@ -154,6 +173,11 @@ const field =
                   Si un compte existe pour <span class="font-medium text-ink">{{ form.email }}</span>, un email avec un lien
                   valable une heure vient d'être envoyé. Pensez à regarder dans vos courriers indésirables.
                 </p>
+                <div v-if="ui.demo" class="mt-4 rounded-lg bg-ink/[0.05] p-3 text-sm">
+                  <p class="text-ink/70">Site de démonstration : aucun email n'est envoyé.</p>
+                  <a v-if="demoLink" :href="demoLink" class="mt-1.5 inline-block font-semibold text-accent underline underline-offset-4">Ouvrir le lien de réinitialisation</a>
+                  <p v-else class="mt-1 text-ink/60">Aucun lien : ce compte n'existe pas, est un compte de démonstration partagé, ou une demande vient d'être faite (une par minute).</p>
+                </div>
               </div>
 
               <form v-else class="mt-7 space-y-4" @submit.prevent="submit">
@@ -226,6 +250,23 @@ const field =
                   <ArrowRight v-if="!loading" :size="18" class="transition group-hover:translate-x-1" />
                 </button>
               </form>
+
+              <!-- Démo : essayer chaque espace sans créer de compte -->
+              <div v-if="ui.demo && (isLogin || isRegister)" class="mt-6 rounded-xl border border-dashed border-ink/25 p-4">
+                <p class="text-sm font-semibold">Visiter la démo sans compte</p>
+                <div class="mt-3 grid grid-cols-3 gap-2">
+                  <button
+                    v-for="d in [{ k: 'client', l: 'Client' }, { k: 'admin', l: 'Garage' }, { k: 'mecano', l: 'Mécano' }]"
+                    :key="d.k"
+                    type="button"
+                    :disabled="loading"
+                    class="rounded-lg border border-ink/20 bg-white py-2 text-sm font-semibold transition hover:border-accent hover:text-accent disabled:opacity-60"
+                    @click="demoLogin(d.k)"
+                  >
+                    {{ d.l }}
+                  </button>
+                </div>
+              </div>
 
               <p class="mt-6 text-sm text-ink/65">
                 <template v-if="isLogin || isRegister">
