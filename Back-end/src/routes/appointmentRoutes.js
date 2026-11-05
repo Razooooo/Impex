@@ -3,6 +3,7 @@ import {
 	assignAppointment,
 	createAppointment,
 	listAppointments,
+	updateNotes,
 	updateStatus,
 } from "../controllers/appointmentController.js";
 import { protect, restrictTo } from "../middlewares/authMiddleware.js";
@@ -13,6 +14,7 @@ router.use(protect);
 router.get("/", listAppointments);
 router.post("/", restrictTo("client"), createAppointment);
 router.patch("/:id/assign", restrictTo("admin"), assignAppointment);
+router.patch("/:id/notes", restrictTo("admin", "mecano"), updateNotes);
 router.patch("/:id/status", updateStatus);
 
 export default router;

@@ -43,7 +43,9 @@ export const listAppointments = async (req, res) => {
 	if (req.user.role === "mecano") filter.assignedMechanic = req.user.id;
 	if (req.query.status) filter.status = req.query.status;
 
-	const appointments = await Appointment.find(filter).sort({ scheduledAt: 1 }).populate(populate);
+	// Un mécanicien a besoin du nom du client, pas de ses coordonnées
+	const fields = req.user.role === "mecano" ? populate.map((p) => (p.path === "customer" ? { ...p, select: "firstName lastName" } : p)) : populate;
+	const appointments = await Appointment.find(filter).sort({ scheduledAt: 1 }).populate(fields);
 	res.json({ success: true, appointments });
 };
 
@@ -98,6 +100,26 @@ export const assignAppointment = async (req, res) => {
 	res.json({ success: true, appointment: await appointment.populate(populate) });
 };
 
+// Admin ou mécano assigné : note sur l'intervention (visible par le client)
+export const updateNotes = async (req, res) => {
+	const notes = String(req.body.mechanicNotes ?? "").trim();
+	if (notes.length > 1000) {
+		return res.status(400).json({ success: false, message: "La note est trop longue (1000 caractères maximum)." });
+	}
+
+	const appointment = await Appointment.findById(req.params.id);
+	if (!appointment) return res.status(404).json({ success: false, message: "Rendez-vous introuvable." });
+
+	const { role, id } = req.user;
+	if (role === "mecano" && String(appointment.assignedMechanic) !== id) {
+		return res.status(403).json({ success: false, message: "Action non autorisée." });
+	}
+
+	appointment.mechanicNotes = notes;
+	await appointment.save();
+	res.json({ success: true, appointment: await appointment.populate(populate) });
+};
+
 // Admin : tout changement — Mécano : seulement ses tâches — Client : annulation de son rdv
 export const updateStatus = async (req, res) => {
 	const { status, mechanicNotes } = req.body;
@@ -119,6 +141,14 @@ export const updateStatus = async (req, res) => {
 		return res
 			.status(400)
 			.json({ success: false, message: "Ce rendez-vous ne peut plus être annulé. Contactez le garage." });
+	}
+
+	// Un mécanicien fait avancer son intervention (confirmé → en cours → terminé), rien d'autre
+	if (role === "mecano") {
+		const next = { confirmed: "in_progress", in_progress: "done" };
+		if (next[appointment.status] !== status) {
+			return res.status(400).json({ success: false, message: "Ce changement de statut n'est pas autorisé." });
+		}
 	}
 
 	if (status === "in_progress" && !appointment.assignedMechanic) {

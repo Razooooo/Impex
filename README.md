@@ -45,7 +45,7 @@ Application web de prise de rendez-vous pour **IMPEX**, garage spécialisé Land
 | Espace admin : équipe (mécaniciens, administrateurs) | Terminé  |
 | Espace admin : gestion des services (ajout, modification, activation) | Terminé |
 | Interdiction des chevauchements d'un même mécanicien | Terminé |
-| Tâches du mécanicien (démarrer / terminer)        | Basique     |
+| Espace mécanicien : interventions du jour, démarrer / terminer, notes | Terminé |
 | Espace client : véhicules, rendez-vous, annulation | Terminé    |
 | Réservation par créneaux selon les horaires du garage | Terminé (côté client) |
 | Choix guidé de la prestation (zones, « Je ne sais pas » avec symptômes) | Terminé |
@@ -118,7 +118,8 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
     ├── public/images/       photos des modèles
     └── src/
         ├── components/      BaseModal (fenêtre générique), AuthModal (connexion / inscription),
-        │                    VehicleModal, AppointmentModal, StaffModal, ServiceModal, AdminAppointmentCard
+        │                    VehicleModal, AppointmentModal, StaffModal, ServiceModal,
+        │                    AdminAppointmentCard, MechanicTaskCard
         ├── data/            contenu de la page de présentation, horaires d'ouverture, photos des modèles
         ├── directives/      v-reveal (animations au scroll)
         ├── lib/             api (Axios), format (dates, durées, créneaux), categories (zones, symptômes), modalStack
@@ -141,6 +142,7 @@ Règles métier :
 - L'assignation est refusée si le mécanicien a déjà une intervention (confirmée ou en cours) qui chevauche le créneau, durée estimée comprise.
 - Un rendez-vous ne peut pas passer `in_progress` sans mécanicien assigné.
 - Un client ne peut annuler son rendez-vous que tant qu'il est `pending` ou `confirmed`, et ne peut pas supprimer un véhicule qui a un rendez-vous à venir.
+- Un mécanicien ne voit que les rendez-vous qui lui sont assignés, et seulement le nom du client (pas ses coordonnées). Il peut les faire avancer (`confirmed` → `in_progress` → `done`) et rédiger une note, mais pas annuler, sauter une étape ni rouvrir une intervention.
 
 ## API
 
@@ -164,7 +166,8 @@ Toutes les routes sont préfixées par `/api`. Les routes protégées attendent 
 | GET     | `/appointments`                | selon le rôle (client : les siens, mécano : les siens assignés, admin : tous) |
 | POST    | `/appointments`                | client                                   |
 | PATCH   | `/appointments/:id/assign`     | admin                                    |
-| PATCH   | `/appointments/:id/status`     | admin, mécano assigné, client (annulation) |
+| PATCH   | `/appointments/:id/status`     | admin, mécano assigné (confirmé → en cours → terminé uniquement), client (annulation) |
+| PATCH   | `/appointments/:id/notes`      | admin, mécano assigné (note visible par le client) |
 | GET     | `/users/mechanics`             | admin                                    |
 | GET     | `/users/staff`                 | admin (mécaniciens et administrateurs)   |
 | POST    | `/users/staff`                 | admin (crée un mécano ou un admin)       |
@@ -227,7 +230,7 @@ La base n'apparaît qu'après la première écriture (lancer le seed ou créer u
 - [ ] Créneaux réellement disponibles (le formulaire propose pour l'instant tous les créneaux des horaires d'ouverture, sans tenir compte des rendez-vous déjà pris)
 - [x] Éviter les chevauchements d'un même mécanicien (refusés à l'assignation)
 - [x] Gestion des services et du personnel depuis l'espace admin
-- [ ] Refaire l'espace mécanicien dans le même style (tâches du jour, notes)
+- [x] Espace mécanicien dans le même style (interventions du jour, notes)
 - [ ] Vue calendrier du planning admin
 - [ ] Désactiver ou supprimer un membre de l'équipe
 - [ ] Temps réel passé par rapport au temps estimé
