@@ -270,7 +270,7 @@ La base n'apparaît qu'après la première écriture (lancer le seed ou créer u
 - [ ] Temps réel passé par rapport au temps estimé
 
 **Priorité 3 : suivi et communication**
-- [ ] Notifications de confirmation et de rappel (email, SMS ou WhatsApp)
+- [ ] Notifications de confirmation et de rappel (email, SMS ou WhatsApp), à prévoir quand un fournisseur d'envoi sera choisi
 - [ ] Historique d'entretien par véhicule
 - [ ] Notes et photos du mécanicien
 
