@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch } from "vue"
 import { Check, CircleHelp } from "lucide-vue-next"
 import { api } from "@/lib/api"
 import { categoryMeta, categoryOrder, symptoms } from "@/lib/categories"
-import { formatDuration, slotsFor, toDateInput } from "@/lib/format"
+import { formatDay, formatDuration, formatTime, toDateInput } from "@/lib/format"
 import BaseModal from "@/components/BaseModal.vue"
 
 const props = defineProps({
@@ -15,7 +15,7 @@ const props = defineProps({
 const emit = defineEmits(["close", "saved", "add-vehicle"])
 
 const UNKNOWN = "unknown"
-const blank = () => ({ vehicleId: "", choice: "", serviceId: "", symptoms: [], date: "", time: "", notes: "" })
+const blank = () => ({ vehicleId: "", choice: "", serviceId: "", symptoms: [], date: "", slot: "", notes: "" })
 const form = reactive(blank())
 const services = ref([])
 const error = ref("")
@@ -71,12 +71,46 @@ function toggleSymptom(s) {
   else form.symptoms.splice(i, 1)
 }
 
-const slots = computed(() => slotsFor(form.date))
-const closedDay = computed(() => form.date && !slots.value.length)
-// Quand on change de jour, on retire l'heure si elle n'existe plus
-watch(slots, (list) => {
-  if (!list.includes(form.time)) form.time = ""
-})
+// ---- Créneaux réellement disponibles (calculés par l'API selon la prestation, les mécaniciens et les rendez-vous déjà pris) ----
+const availability = ref(null) // { closed, slots: [{ time, start, available }], next, durationMinutes }
+const slotsLoading = ref(false)
+const slotsError = ref("")
+let slotRequest = 0
+let wantedSlot = "" // créneau à sélectionner dès que le jour suggéré est chargé
+
+async function loadSlots() {
+  const request = ++slotRequest
+  availability.value = null
+  slotsError.value = ""
+  if (!form.date || !selectedService.value) return
+
+  slotsLoading.value = true
+  try {
+    const data = await api(`/availability?date=${form.date}&serviceId=${selectedService.value._id}`)
+    if (request !== slotRequest) return // une réponse plus récente est arrivée entre-temps
+    availability.value = data
+    const wanted = data.slots.find((s) => s.start === wantedSlot && s.available)
+    form.slot = wanted ? wanted.start : ""
+  } catch (e) {
+    if (request === slotRequest) slotsError.value = e.message
+  } finally {
+    if (request === slotRequest) {
+      slotsLoading.value = false
+      wantedSlot = ""
+    }
+  }
+}
+
+// Changer de jour ou de prestation change la durée et les créneaux : on recharge
+watch(() => [form.date, selectedService.value?._id], loadSlots)
+
+const freeSlots = computed(() => availability.value?.slots.filter((s) => s.available) ?? [])
+
+function goToNext() {
+  const next = availability.value.next
+  wantedSlot = next.start
+  form.date = next.date
+}
 
 async function submit() {
   error.value = ""
@@ -85,7 +119,7 @@ async function submit() {
   if (isUnknown.value && !form.symptoms.length && !form.notes.trim()) {
     return (error.value = "Indiquez au moins un symptôme ou quelques mots, pour aider le mécanicien.")
   }
-  if (!form.time) return (error.value = "Choisissez une date et une heure.")
+  if (!form.slot) return (error.value = "Choisissez une date et une heure.")
 
   const notes = [form.symptoms.length ? `Symptômes : ${form.symptoms.join(", ")}.` : "", form.notes.trim()].filter(Boolean).join(" ")
 
@@ -96,13 +130,14 @@ async function submit() {
       body: {
         vehicleId: form.vehicleId,
         serviceId: selectedService.value._id,
-        scheduledAt: new Date(`${form.date}T${form.time}`).toISOString(),
+        scheduledAt: form.slot,
         customerNotes: notes,
       },
     })
     emit("saved")
   } catch (e) {
     error.value = e.message
+    loadSlots() // le créneau a peut-être été pris entre-temps : on rafraîchit la grille
   } finally {
     loading.value = false
   }
@@ -224,20 +259,55 @@ const tile = (active) =>
 
       <!-- 3. Date et heure -->
       <div>
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block text-sm font-medium">
-            Date
-            <input v-model="form.date" type="date" required :min="today" class="field mt-1.5" />
-          </label>
-          <label class="block text-sm font-medium">
-            Heure
-            <select v-model="form.time" required :disabled="!slots.length" class="field mt-1.5 disabled:opacity-50">
-              <option value="" disabled>{{ form.date ? (slots.length ? "Choisir" : "—") : "Choisir une date" }}</option>
-              <option v-for="t in slots" :key="t" :value="t">{{ t }}</option>
-            </select>
-          </label>
+        <label class="block text-sm font-medium">
+          Date
+          <input v-model="form.date" type="date" :min="today" class="field mt-1.5 block sm:max-w-[14rem]" />
+        </label>
+
+        <div class="mt-3" aria-live="polite">
+          <p v-if="!selectedService" class="rounded-lg bg-ink/[0.04] px-3.5 py-2.5 text-sm text-ink/55">Choisissez d'abord ce dont vous avez besoin : les créneaux dépendent de la durée de la prestation.</p>
+          <p v-else-if="!form.date" class="rounded-lg bg-ink/[0.04] px-3.5 py-2.5 text-sm text-ink/55">Choisissez une date pour voir les heures disponibles.</p>
+          <p v-else-if="slotsLoading" class="text-sm text-ink/50">Chargement des créneaux…</p>
+          <p v-else-if="slotsError" class="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-red-800">{{ slotsError }}</p>
+
+          <template v-else-if="availability">
+            <!-- Rien de libre ce jour-là : on propose directement la suite -->
+            <div v-if="!freeSlots.length" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p class="text-sm font-medium text-amber-900">
+                {{ availability.closed ? "Le garage est fermé ce jour-là." : "Plus aucun créneau libre ce jour-là." }}
+              </p>
+              <button v-if="availability.next" type="button" class="mt-2 text-sm font-semibold text-accent underline underline-offset-4 hover:text-ink" @click="goToNext">
+                Prochain créneau disponible : {{ formatDay(availability.next.start) }} à {{ formatTime(availability.next.start) }}
+              </button>
+              <p v-else class="mt-1 text-sm text-amber-900/80">Aucune disponibilité dans les deux prochaines semaines. Contactez le garage.</p>
+            </div>
+
+            <template v-else>
+              <p class="mb-2 text-sm font-medium">Heure d'arrivée <span class="font-normal text-ink/50">· intervention de {{ formatDuration(availability.durationMinutes) }}</span></p>
+              <div class="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                <button
+                  v-for="s in availability.slots"
+                  :key="s.start"
+                  type="button"
+                  :disabled="!s.available"
+                  :aria-pressed="form.slot === s.start"
+                  class="rounded-lg border py-2 text-sm font-medium transition"
+                  :class="
+                    form.slot === s.start
+                      ? 'border-accent bg-accent text-paper'
+                      : s.available
+                        ? 'border-ink/20 bg-white hover:border-accent hover:text-accent'
+                        : 'cursor-not-allowed border-transparent bg-ink/[0.04] text-ink/30 line-through'
+                  "
+                  @click="form.slot = s.start"
+                >
+                  {{ s.time }}
+                </button>
+              </div>
+              <p class="mt-2 text-xs text-ink/50">Les heures barrées sont déjà prises, ou trop tardives pour finir avant la fermeture.</p>
+            </template>
+          </template>
         </div>
-        <p v-if="closedDay" class="mt-2 text-xs text-red-800">Le garage n'est pas disponible ce jour-là (ou plus de créneau aujourd'hui). Choisissez une autre date.</p>
       </div>
 
       <!-- 4. Précisions -->

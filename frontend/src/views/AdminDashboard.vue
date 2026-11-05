@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue"
 import { CalendarClock, Hourglass, Pencil, Plus, Users, Wrench } from "lucide-vue-next"
 import { api } from "@/lib/api"
 import { categoryMeta, categoryOrder } from "@/lib/categories"
-import { formatDay, formatDuration, formatTime, toDateInput } from "@/lib/format"
+import { formatDay, formatDayMonth, formatDuration, formatTime, toDateInput } from "@/lib/format"
 import { useAuthStore } from "@/stores/auth"
 import AdminAppointmentCard from "@/components/AdminAppointmentCard.vue"
 import ServiceModal from "@/components/ServiceModal.vue"
@@ -264,7 +264,7 @@ const tabs = computed(() => [
           <ul v-else class="space-y-2">
             <li v-for="a in agenda(m).slice(0, 3)" :key="a._id" class="flex items-start justify-between gap-3 text-sm">
               <span class="min-w-0"><span class="block truncate font-medium">{{ a.service?.name }}</span><span class="text-xs text-ink/55">{{ a.vehicle?.model }}</span></span>
-              <span class="flex-none text-right text-xs text-ink/60">{{ new Date(a.scheduledAt).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }) }}<br />{{ formatTime(a.scheduledAt) }} · {{ formatDuration(a.estimatedMinutes) }}</span>
+              <span class="flex-none text-right text-xs text-ink/60">{{ formatDayMonth(a.scheduledAt) }}<br />{{ formatTime(a.scheduledAt) }} · {{ formatDuration(a.estimatedMinutes) }}</span>
             </li>
           </ul>
         </li>

@@ -1,5 +1,3 @@
-import { openingHours } from "@/data/garage"
-
 export const statusMeta = {
   pending: { label: "En attente", cls: "bg-amber-100 text-amber-900" },
   confirmed: { label: "Confirmé", cls: "bg-accent text-paper" },
@@ -29,35 +27,25 @@ export function formatDuration(minutes) {
   return m ? `${h} h ${String(m).padStart(2, "0")}` : `${h} h`
 }
 
+// Toutes les dates et heures s'affichent à l'heure du garage (Antananarivo), quel que soit le fuseau du navigateur :
+// un rendez-vous « à 9h » doit s'afficher 9h pour tout le monde. À garder identique à Back-end/src/config/garage.js.
+export const GARAGE_TZ = "Indian/Antananarivo"
+const fmt = (date, options) => new Intl.DateTimeFormat("fr-FR", { timeZone: GARAGE_TZ, ...options }).format(new Date(date))
+
 // "Jeudi 5 novembre" (majuscule au premier mot seulement)
 export function formatDay(date) {
-  const s = new Date(date).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+  const s = fmt(date, { weekday: "long", day: "numeric", month: "long" })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-export const formatTime = (date) =>
-  new Date(date).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+export const formatTime = (date) => fmt(date, { hour: "2-digit", minute: "2-digit" })
 
-// "2026-11-04" en heure locale (toISOString donnerait la date UTC)
-export function toDateInput(date = new Date()) {
-  const p = (n) => String(n).padStart(2, "0")
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`
-}
+// "mer. 5 nov." et "5 nov."
+export const formatShortDay = (date) => fmt(date, { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "")
+export const formatDayMonth = (date) => fmt(date, { day: "numeric", month: "short" })
+export const dayOfMonth = (date) => Number(fmt(date, { day: "numeric" }))
+export const monthShort = (date) => fmt(date, { month: "short" }).replace(".", "")
 
-// Créneaux de 30 min pour un jour donné ("2026-11-05"), vide si le garage est fermé.
-// Les créneaux déjà passés ne sont pas proposés.
-export function slotsFor(dateStr) {
-  if (!dateStr) return []
-  const day = new Date(`${dateStr}T00:00`).getDay()
-  const hours = openingHours[day]
-  if (!hours) return []
-
-  const slots = []
-  for (let t = hours[0]; t < hours[1]; t += 0.5) {
-    const hh = String(Math.floor(t)).padStart(2, "0")
-    const mm = t % 1 ? "30" : "00"
-    const time = `${hh}:${mm}`
-    if (new Date(`${dateStr}T${time}`) > new Date()) slots.push(time)
-  }
-  return slots
-}
+// "2026-11-04" : la date du jour (ou de `date`) à l'heure du garage. Se compare directement comme du texte.
+export const toDateInput = (date = new Date()) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: GARAGE_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date))

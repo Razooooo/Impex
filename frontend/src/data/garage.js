@@ -6,17 +6,9 @@ export const contactInfo = {
   email: "contact@impex.mg",
   address: "Antananarivo, Madagascar",
   whatsapp: "261340000000",
+  // Texte affiché sur le site. Les horaires utilisés pour les créneaux sont dans Back-end/src/config/garage.js :
+  // à garder identiques.
   hours: ["Lundi – vendredi, 8h00 – 17h30", "Samedi, 8h00 – 12h00"],
-}
-
-// Horaires d'ouverture par jour (0 = dimanche) : [heure d'ouverture, heure de fermeture]. Absent = fermé.
-export const openingHours = {
-  1: [8, 17.5],
-  2: [8, 17.5],
-  3: [8, 17.5],
-  4: [8, 17.5],
-  5: [8, 17.5],
-  6: [8, 12],
 }
 
 // Photo affichée pour chaque modèle enregistré par un client (les noms suivent l'énumération de l'API)

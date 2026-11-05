@@ -47,7 +47,7 @@ Application web de prise de rendez-vous pour **IMPEX**, garage spécialisé Land
 | Interdiction des chevauchements d'un même mécanicien | Terminé |
 | Espace mécanicien : interventions du jour, démarrer / terminer, notes | Terminé |
 | Espace client : véhicules, rendez-vous, annulation | Terminé    |
-| Réservation par créneaux selon les horaires du garage | Terminé (côté client) |
+| Créneaux réellement disponibles (mécaniciens, durée, rendez-vous déjà pris) | Terminé |
 | Choix guidé de la prestation (zones, « Je ne sais pas » avec symptômes) | Terminé |
 
 ## Démarrage rapide
@@ -106,12 +106,13 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
 ├── docker-compose.yml
 ├── Back-end/
 │   └── src/
-│       ├── config/          connexion MongoDB
+│       ├── config/          connexion MongoDB, horaires et fuseau du garage
 │       ├── controllers/     logique métier
 │       ├── middlewares/     authentification, rôles, erreurs
 │       ├── models/          User, Vehicle, Service, Appointment
 │       ├── routes/          routes de l'API
 │       ├── scripts/         seed.js
+│       ├── utils/           availability.js (calcul des créneaux disponibles)
 │       ├── app.js
 │       └── server.js
 └── frontend/
@@ -138,6 +139,8 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
 Statuts d'un rendez-vous : `pending` → `confirmed` → `in_progress` → `done` (ou `cancelled`).
 
 Règles métier :
+- Un créneau n'est proposé (et accepté à la réservation) que si l'intervention se termine avant la fermeture et qu'il reste au moins un mécanicien libre pendant toute sa durée. Les demandes encore en attente comptent comme occupant un mécanicien, pour ne jamais promettre plus que ce que le garage peut tenir. Le serveur revérifie le créneau à la création du rendez-vous.
+- Les horaires d'ouverture, le pas entre deux créneaux (30 min), le délai minimum avant un rendez-vous (1 h) et le fuseau du garage (Antananarivo, UTC+3) sont définis dans `Back-end/src/config/garage.js`. Toutes les heures s'affichent à l'heure du garage, quel que soit le fuseau du navigateur.
 - Assigner un mécanicien passe un rendez-vous `pending` en `confirmed`.
 - L'assignation est refusée si le mécanicien a déjà une intervention (confirmée ou en cours) qui chevauche le créneau, durée estimée comprise.
 - Un rendez-vous ne peut pas passer `in_progress` sans mécanicien assigné.
@@ -158,6 +161,7 @@ Toutes les routes sont préfixées par `/api`. Les routes protégées attendent 
 | GET     | `/services/all`                | admin (y compris les services désactivés) |
 | POST    | `/services`                    | admin                                    |
 | PATCH   | `/services/:id`                | admin                                    |
+| GET     | `/availability?date=&serviceId=` | client (créneaux du jour pour une prestation, et prochain créneau libre si le jour est complet ou fermé) |
 | GET     | `/vehicles/models`             | client (liste des modèles acceptés)      |
 | GET     | `/vehicles`                    | client                                   |
 | POST    | `/vehicles`                    | client                                   |
@@ -227,7 +231,9 @@ La base n'apparaît qu'après la première écriture (lancer le seed ou créer u
 - [x] Annulation d'un rendez-vous depuis l'espace client
 
 **Priorité 2 : planification côté garage**
-- [ ] Créneaux réellement disponibles (le formulaire propose pour l'instant tous les créneaux des horaires d'ouverture, sans tenir compte des rendez-vous déjà pris)
+- [x] Créneaux réellement disponibles (durée de la prestation, mécaniciens libres, demandes en attente comprises)
+- [ ] Congés et absences des mécaniciens (aujourd'hui, tous les mécaniciens comptent comme présents tous les jours ouverts)
+- [ ] Jours fériés et fermetures exceptionnelles du garage
 - [x] Éviter les chevauchements d'un même mécanicien (refusés à l'assignation)
 - [x] Gestion des services et du personnel depuis l'espace admin
 - [x] Espace mécanicien dans le même style (interventions du jour, notes)

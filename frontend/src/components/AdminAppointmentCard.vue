@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue"
 import { Mail, Phone } from "lucide-vue-next"
 import { api } from "@/lib/api"
-import { formatDay, formatDuration, formatTime, statusMeta, toDateInput } from "@/lib/format"
+import { dayOfMonth, formatDay, formatDuration, formatTime, monthShort, statusMeta, toDateInput } from "@/lib/format"
 
 const props = defineProps({
   appointment: { type: Object, required: true },
@@ -41,9 +41,6 @@ const stepIndex = computed(() => STEPS.findIndex((s) => s.key === a.value.status
 const changed = computed(
   () => mechanicId.value !== (a.value.assignedMechanic?._id ?? "") || Number(minutes.value) !== a.value.estimatedMinutes,
 )
-
-const day = (d) => new Date(d).getDate()
-const month = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")
 
 // « Marc Dupont · 2 ce jour-là » aide à répartir le travail
 function workload(m) {
@@ -91,8 +88,8 @@ function cancel() {
   <li class="overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm">
     <div class="flex gap-4 p-5">
       <div class="w-16 flex-none self-start rounded-xl bg-ink py-3 text-center text-paper" :class="a.status === 'cancelled' ? 'opacity-40' : ''">
-        <p class="text-3xl font-bold leading-none">{{ day(a.scheduledAt) }}</p>
-        <p class="mt-1 text-xs uppercase tracking-wide text-paper/65">{{ month(a.scheduledAt) }}</p>
+        <p class="text-3xl font-bold leading-none">{{ dayOfMonth(a.scheduledAt) }}</p>
+        <p class="mt-1 text-xs uppercase tracking-wide text-paper/65">{{ monthShort(a.scheduledAt) }}</p>
       </div>
 
       <div class="min-w-0 flex-1">

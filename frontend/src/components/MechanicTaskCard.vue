@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, watch } from "vue"
 import { api } from "@/lib/api"
-import { formatDuration, formatTime, statusMeta } from "@/lib/format"
+import { formatDuration, formatShortDay, formatTime, statusMeta, toDateInput } from "@/lib/format"
 
 const props = defineProps({ appointment: { type: Object, required: true } })
 const emit = defineEmits(["changed"])
@@ -25,13 +25,8 @@ watch(
 
 const dirty = computed(() => notes.value.trim() !== (a.value.mechanicNotes ?? ""))
 const stepIndex = computed(() => STEPS.findIndex((s) => s.key === a.value.status))
-const overdue = computed(() => {
-  const startOfToday = new Date().setHours(0, 0, 0, 0)
-  return a.value.status === "confirmed" && new Date(a.value.scheduledAt) < startOfToday
-})
-const when = computed(() =>
-  new Date(a.value.scheduledAt).toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" }).replace(".", ""),
-)
+const overdue = computed(() => a.value.status === "confirmed" && toDateInput(a.value.scheduledAt) < toDateInput())
+const when = computed(() => formatShortDay(a.value.scheduledAt))
 const km = (n) => `${Number(n).toLocaleString("fr-FR")} km`
 
 async function run(task, message) {

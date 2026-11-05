@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { CalendarClock, Car, CircleCheck, Pencil, Plus, Trash2 } from "lucide-vue-next"
 import { api } from "@/lib/api"
-import { formatDay, formatDuration, formatTime, statusMeta } from "@/lib/format"
+import { dayOfMonth, formatDay, formatDuration, formatTime, monthShort, statusMeta } from "@/lib/format"
 import { modelImages } from "@/data/garage"
 import { useAuthStore } from "@/stores/auth"
 import { useUiStore } from "@/stores/ui"
@@ -124,8 +124,6 @@ async function removeVehicle(v) {
   }
 }
 
-const dayNumber = (d) => new Date(d).getDate()
-const monthShort = (d) => new Date(d).toLocaleDateString("fr-FR", { month: "short" }).replace(".", "")
 const stepIndex = (status) => STEPS.findIndex((s) => s.key === status)
 const km = (n) => `${Number(n).toLocaleString("fr-FR")} km`
 
@@ -219,7 +217,7 @@ const stats = computed(() => [
           <li v-for="a in shown" :key="a._id" class="overflow-hidden rounded-2xl border border-ink/10 bg-white shadow-sm">
             <div class="flex gap-5 p-5">
               <div class="w-16 flex-none self-start rounded-xl bg-ink py-3 text-center text-paper" :class="a.status === 'cancelled' ? 'opacity-40' : ''">
-                <p class="text-3xl font-bold leading-none">{{ dayNumber(a.scheduledAt) }}</p>
+                <p class="text-3xl font-bold leading-none">{{ dayOfMonth(a.scheduledAt) }}</p>
                 <p class="mt-1 text-xs uppercase tracking-wide text-paper/65">{{ monthShort(a.scheduledAt) }}</p>
               </div>
 

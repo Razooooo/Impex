@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from "vue"
 import { CalendarClock, CircleCheck, Wrench } from "lucide-vue-next"
 import { api } from "@/lib/api"
-import { formatDay, formatDuration, formatTime } from "@/lib/format"
+import { formatDay, formatDuration, formatTime, toDateInput } from "@/lib/format"
 import { useAuthStore } from "@/stores/auth"
 import MechanicTaskCard from "@/components/MechanicTaskCard.vue"
 
@@ -43,12 +43,13 @@ async function onChanged(message) {
 }
 
 const asc = (a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)
-const endOfToday = () => new Date().setHours(23, 59, 59, 999)
+// Les jours se comparent à l'heure du garage ("2026-11-06" <= "2026-11-06")
+const dayOf = (a) => toDateInput(a.scheduledAt)
 
 // À faire aujourd'hui : ce qui est en cours, plus tout ce qui est prévu aujourd'hui ou qui aurait dû être fait
 const active = computed(() => appointments.value.filter((a) => ["confirmed", "in_progress"].includes(a.status)).sort(asc))
-const todayList = computed(() => active.value.filter((a) => a.status === "in_progress" || new Date(a.scheduledAt) <= endOfToday()))
-const upcomingList = computed(() => active.value.filter((a) => a.status === "confirmed" && new Date(a.scheduledAt) > endOfToday()))
+const todayList = computed(() => active.value.filter((a) => a.status === "in_progress" || dayOf(a) <= toDateInput()))
+const upcomingList = computed(() => active.value.filter((a) => a.status === "confirmed" && dayOf(a) > toDateInput()))
 const doneList = computed(() => appointments.value.filter((a) => a.status === "done").sort((a, b) => asc(b, a)))
 
 const current = computed(() => active.value.find((a) => a.status === "in_progress"))

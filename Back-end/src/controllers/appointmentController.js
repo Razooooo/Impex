@@ -3,6 +3,7 @@ import Service from "../models/Service.js";
 import User from "../models/User.js";
 import Vehicle from "../models/Vehicle.js";
 import { APPOINTMENT_STATUSES } from "../models/Appointment.js";
+import { isSlotAvailable } from "../utils/availability.js";
 
 const populate = [
 	{ path: "customer", select: "firstName lastName email phone" },
@@ -21,8 +22,17 @@ export const createAppointment = async (req, res) => {
 	const service = await Service.findOne({ _id: serviceId, active: true });
 	if (!service) return res.status(404).json({ success: false, message: "Service introuvable." });
 
-	if (!scheduledAt || new Date(scheduledAt) < new Date()) {
+	const start = new Date(scheduledAt);
+	if (!scheduledAt || Number.isNaN(start.getTime()) || start < new Date()) {
 		return res.status(400).json({ success: false, message: "La date doit être dans le futur." });
+	}
+
+	// On revérifie côté serveur : le créneau a pu être pris entre-temps, ou l'heure envoyée n'a jamais été proposée
+	if (!(await isSlotAvailable(start, service.estimatedMinutes))) {
+		return res.status(409).json({
+			success: false,
+			message: "Ce créneau n'est plus disponible. Choisissez une autre heure.",
+		});
 	}
 
 	const appointment = await Appointment.create({
