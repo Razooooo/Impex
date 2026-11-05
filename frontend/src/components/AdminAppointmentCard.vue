@@ -9,6 +9,8 @@ const props = defineProps({
   mechanics: { type: Array, default: () => [] },
   // tous les rendez-vous, pour indiquer la charge de chaque mécanicien ce jour-là
   all: { type: Array, default: () => [] },
+  // absences et fermetures déclarées, pour signaler les mécaniciens indisponibles
+  timeOffs: { type: Array, default: () => [] },
 })
 const emit = defineEmits(["changed"])
 
@@ -42,8 +44,17 @@ const changed = computed(
   () => mechanicId.value !== (a.value.assignedMechanic?._id ?? "") || Number(minutes.value) !== a.value.estimatedMinutes,
 )
 
-// « Marc Dupont · 2 ce jour-là » aide à répartir le travail
+// Absence du mécanicien (ou fermeture du garage) le jour du rendez-vous
+const day = computed(() => toDateInput(a.value.scheduledAt))
+const offFor = (m) =>
+  props.timeOffs.find((t) => t.startDate <= day.value && t.endDate >= day.value && (t.scope === "garage" || t.mechanic?._id === m._id))
+const closure = computed(() => props.timeOffs.find((t) => t.scope === "garage" && t.startDate <= day.value && t.endDate >= day.value))
+// Le mécanicien assigné est absent : il faut réassigner ce rendez-vous
+const assignedOff = computed(() => (canManage.value && a.value.assignedMechanic && !closure.value ? offFor(a.value.assignedMechanic) : null))
+
+// « Marc Dupont · 2 ce jour-là » aide à répartir le travail ; « absent ce jour-là » désactive le choix
 function workload(m) {
+  if (offFor(m)) return `${m.firstName} ${m.lastName} · absent ce jour-là`
   const sameDay = toDateInput(new Date(a.value.scheduledAt))
   const n = props.all.filter(
     (x) =>
@@ -127,12 +138,18 @@ function cancel() {
         <p class="mb-3 text-xs font-semibold uppercase tracking-wide" :class="isPending ? 'text-amber-800' : 'text-ink/45'">
           {{ isPending ? "À traiter : assignez un mécanicien pour confirmer" : "Gestion du rendez-vous" }}
         </p>
+        <p v-if="closure" class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          Le garage est fermé ce jour-là{{ closure.reason ? ` (${closure.reason})` : "" }}. Ce rendez-vous ne peut pas avoir lieu : refusez-le ou annulez-le.
+        </p>
+        <p v-else-if="assignedOff" class="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          {{ a.assignedMechanic.firstName }} est absent ce jour-là{{ assignedOff.reason ? ` (${assignedOff.reason})` : "" }} : réassignez ce rendez-vous à un autre mécanicien.
+        </p>
         <div class="grid gap-3 sm:grid-cols-[1fr_9rem]">
           <label class="block text-sm font-medium">
             Mécanicien
             <select v-model="mechanicId" class="field mt-1.5">
               <option value="" disabled>Choisir un mécanicien</option>
-              <option v-for="m in mechanics" :key="m._id" :value="m._id">{{ workload(m) }}</option>
+              <option v-for="m in mechanics" :key="m._id" :value="m._id" :disabled="!!offFor(m)">{{ workload(m) }}</option>
             </select>
           </label>
           <label class="block text-sm font-medium">

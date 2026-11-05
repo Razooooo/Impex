@@ -1,19 +1,25 @@
 <script setup>
 import { computed, onMounted, ref } from "vue"
-import { CalendarClock, Hourglass, Pencil, Plus, Users, Wrench } from "lucide-vue-next"
+import { CalendarClock, Hourglass, Pencil, Plus, Trash2, Users, Wrench } from "lucide-vue-next"
 import { api } from "@/lib/api"
 import { categoryMeta, categoryOrder } from "@/lib/categories"
+import { labelRange } from "@/lib/dates"
 import { formatDay, formatDayMonth, formatDuration, formatTime, toDateInput } from "@/lib/format"
 import { useAuthStore } from "@/stores/auth"
 import AdminAppointmentCard from "@/components/AdminAppointmentCard.vue"
+import AdminCalendar from "@/components/AdminCalendar.vue"
+import BaseModal from "@/components/BaseModal.vue"
 import ServiceModal from "@/components/ServiceModal.vue"
 import StaffModal from "@/components/StaffModal.vue"
+import TimeOffModal from "@/components/TimeOffModal.vue"
 
 const auth = useAuthStore()
 
 const appointments = ref([])
 const staff = ref([])
 const services = ref([])
+const timeOffs = ref([])
+const config = ref(null)
 const loading = ref(true)
 const error = ref("")
 const notice = ref("")
@@ -23,6 +29,11 @@ const filter = ref("pending")
 const showStaff = ref(false)
 const showService = ref(false)
 const editingService = ref(null)
+const showTimeOff = ref(false)
+const timeOffDay = ref("")
+const selectedId = ref(null) // rendez-vous ouvert depuis le calendrier
+const affected = ref([]) // rendez-vous touchés par une absence ou une fermeture qu'on vient de déclarer
+const confirmingOffId = ref(null)
 
 const ACTIVE = ["pending", "confirmed", "in_progress"]
 const mechanics = computed(() => staff.value.filter((s) => s.role === "mecano"))
@@ -30,10 +41,18 @@ const admins = computed(() => staff.value.filter((s) => s.role === "admin"))
 
 async function load() {
   try {
-    const [a, s, sv] = await Promise.all([api("/appointments"), api("/users/staff"), api("/services/all")])
+    const [a, s, sv, off, garage] = await Promise.all([
+      api("/appointments"),
+      api("/users/staff"),
+      api("/services/all"),
+      api("/timeoff"),
+      api("/garage"),
+    ])
     appointments.value = a.appointments
     staff.value = s.staff
     services.value = sv.services
+    timeOffs.value = off.timeOffs
+    config.value = garage
   } catch (e) {
     error.value = e.message
   } finally {
@@ -57,6 +76,38 @@ function flash(message) {
 async function onChanged(message) {
   await load()
   flash(message)
+}
+
+// ---- Absences et fermetures ----
+const selected = computed(() => appointments.value.find((a) => a._id === selectedId.value))
+
+function openTimeOff(day = "") {
+  timeOffDay.value = day
+  showTimeOff.value = true
+}
+
+async function onTimeOffSaved({ timeOff, affected: touched }) {
+  showTimeOff.value = false
+  await load()
+  affected.value = touched
+  const who = timeOff.scope === "garage" ? "Fermeture du garage" : `Absence de ${timeOff.mechanic?.firstName}`
+  flash(`${who} enregistrée (${labelRange(timeOff.startDate, timeOff.endDate)}). Les créneaux sont à jour.`)
+}
+
+async function removeTimeOff(t) {
+  if (confirmingOffId.value !== t._id) {
+    confirmingOffId.value = t._id
+    return
+  }
+  try {
+    await api(`/timeoff/${t._id}`, { method: "DELETE" })
+    await load()
+    flash("Supprimé : les créneaux de ces jours sont de nouveau ouverts à la réservation.")
+  } catch (e) {
+    error.value = e.message
+  } finally {
+    confirmingOffId.value = null
+  }
 }
 
 // ---- Résumé ----
@@ -140,7 +191,8 @@ async function toggleService(s) {
 }
 
 const tabs = computed(() => [
-  { k: "appointments", l: "Rendez-vous", n: pending.value.length, alert: pending.value.length > 0 },
+  { k: "appointments", l: "Rendez-vous", s: "RDV", n: pending.value.length, alert: pending.value.length > 0 },
+  { k: "calendar", l: "Calendrier", n: timeOffs.value.length },
   { k: "team", l: "Équipe", n: staff.value.length },
   { k: "services", l: "Services", n: services.value.length },
 ])
@@ -196,16 +248,16 @@ const tabs = computed(() => [
 
     <!-- Onglets -->
     <div class="mt-10 flex flex-wrap items-center justify-between gap-3">
-      <div class="inline-flex rounded-full bg-ink/[0.07] p-1 text-sm font-semibold">
+      <div class="flex w-full rounded-full bg-ink/[0.07] p-1 text-[13px] font-semibold sm:inline-flex sm:w-auto sm:text-sm">
         <button
           v-for="t in tabs"
           :key="t.k"
-          class="rounded-full px-5 py-1.5 transition"
+          class="flex-1 whitespace-nowrap rounded-full px-2 py-1.5 transition sm:flex-none sm:px-5"
           :class="tab === t.k ? 'bg-white text-ink shadow-sm' : 'text-ink/55 hover:text-ink'"
           @click="tab = t.k"
         >
-          {{ t.l }}
-          <span class="ml-1 rounded-full px-1.5 text-xs" :class="t.alert ? 'bg-amber-200 text-amber-900' : 'text-ink/40'">{{ t.n }}</span>
+          <span class="sm:hidden">{{ t.s ?? t.l }}</span><span class="hidden sm:inline">{{ t.l }}</span>
+          <span class="ml-1 rounded-full px-1.5 text-xs" :class="t.alert ? 'bg-amber-200 text-amber-900' : 'hidden text-ink/40 sm:inline'">{{ t.n }}</span>
         </button>
       </div>
 
@@ -235,8 +287,61 @@ const tabs = computed(() => [
 
       <p v-if="!shown.length" class="rounded-2xl border border-dashed border-ink/25 p-10 text-center text-sm text-ink/60">Aucun rendez-vous dans cette catégorie.</p>
       <ul v-else class="grid gap-4 xl:grid-cols-2">
-        <AdminAppointmentCard v-for="a in shown" :key="a._id" :appointment="a" :mechanics="mechanics" :all="appointments" @changed="onChanged" />
+        <AdminAppointmentCard v-for="a in shown" :key="a._id" :appointment="a" :mechanics="mechanics" :all="appointments" :time-offs="timeOffs" @changed="onChanged" />
       </ul>
+    </section>
+
+    <!-- CALENDRIER -->
+    <section v-else-if="tab === 'calendar'" class="mt-6">
+      <!-- Rendez-vous touchés par l'absence ou la fermeture qu'on vient de déclarer -->
+      <div v-if="affected.length" class="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="font-semibold text-amber-950">{{ affected.length }} rendez-vous déjà pris sur cette période</p>
+            <p class="mt-0.5 text-sm text-amber-900/80">Réassignez-les à un autre mécanicien, ou refusez-les si le garage est fermé.</p>
+          </div>
+          <button class="flex-none text-sm font-semibold text-amber-900 underline underline-offset-4" @click="affected = []">Masquer</button>
+        </div>
+        <ul class="mt-3 divide-y divide-amber-200">
+          <li v-for="a in affected" :key="a._id" class="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+            <span>
+              <span class="font-medium">{{ formatDay(a.scheduledAt) }} à {{ formatTime(a.scheduledAt) }}</span>
+              · {{ a.service }} · {{ a.customer }}
+              <span class="text-amber-900/70">{{ a.mechanic ? `· ${a.mechanic}` : "· à assigner" }}</span>
+            </span>
+            <button class="rounded-lg bg-white px-3 py-1 text-xs font-semibold text-amber-950 shadow-sm transition hover:bg-amber-100" @click="selectedId = a._id">Ouvrir</button>
+          </li>
+        </ul>
+      </div>
+
+      <AdminCalendar :appointments="appointments" :mechanics="mechanics" :time-offs="timeOffs" :config="config" @open="selectedId = $event._id" @add-timeoff="openTimeOff" />
+
+      <!-- Absences et fermetures à venir -->
+      <div class="mt-10">
+        <h2 class="mb-3 text-lg font-bold tracking-tight">Absences et fermetures à venir</h2>
+        <p v-if="!timeOffs.length" class="rounded-2xl border border-dashed border-ink/25 p-8 text-center text-sm text-ink/60">Aucune absence ni fermeture déclarée.</p>
+        <ul v-else class="grid gap-3 lg:grid-cols-2">
+          <li v-for="t in timeOffs" :key="t._id" class="flex items-center justify-between gap-4 rounded-2xl border border-ink/10 bg-white p-4 shadow-sm">
+            <div class="min-w-0">
+              <p class="font-semibold">
+                {{ t.scope === "garage" ? "Garage fermé" : `${t.mechanic?.firstName} ${t.mechanic?.lastName} absent` }}
+                <span class="font-normal text-ink/60">· {{ labelRange(t.startDate, t.endDate) }}</span>
+              </p>
+              <p v-if="t.reason" class="truncate text-sm text-ink/60">{{ t.reason }}</p>
+            </div>
+            <button
+              class="flex-none rounded-lg p-2 transition"
+              :class="confirmingOffId === t._id ? 'bg-red-100 text-red-800' : 'text-ink/40 hover:bg-ink/5 hover:text-ink'"
+              :aria-label="confirmingOffId === t._id ? 'Confirmer la suppression' : 'Supprimer'"
+              :title="confirmingOffId === t._id ? 'Cliquez à nouveau pour supprimer' : 'Supprimer'"
+              @click="removeTimeOff(t)"
+              @blur="confirmingOffId = null"
+            >
+              <Trash2 :size="17" />
+            </button>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <!-- EQUIPE -->
@@ -318,6 +423,15 @@ const tabs = computed(() => [
         </ul>
       </div>
     </section>
+
+    <TimeOffModal :open="showTimeOff" :mechanics="mechanics" :day="timeOffDay" @close="showTimeOff = false" @saved="onTimeOffSaved" />
+
+    <!-- Fiche d'un rendez-vous ouvert depuis le calendrier : on peut l'assigner, le démarrer ou l'annuler sans quitter la vue -->
+    <BaseModal :open="!!selected" wide title="Rendez-vous" @close="selectedId = null">
+      <ul v-if="selected">
+        <AdminAppointmentCard :appointment="selected" :mechanics="mechanics" :all="appointments" :time-offs="timeOffs" @changed="onChanged" />
+      </ul>
+    </BaseModal>
 
     <StaffModal :open="showStaff" @close="showStaff = false" @saved="onStaffSaved" />
     <ServiceModal :open="showService" :service="editingService" @close="showService = false" @saved="onServiceSaved" />

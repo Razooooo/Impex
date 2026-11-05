@@ -274,7 +274,7 @@ const tile = (active) =>
             <!-- Rien de libre ce jour-là : on propose directement la suite -->
             <div v-if="!freeSlots.length" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
               <p class="text-sm font-medium text-amber-900">
-                {{ availability.closed ? "Le garage est fermé ce jour-là." : "Plus aucun créneau libre ce jour-là." }}
+                {{ availability.closed ? `Le garage est fermé ce jour-là${availability.reason ? ` (${availability.reason})` : ""}.` : "Plus aucun créneau libre ce jour-là." }}
               </p>
               <button v-if="availability.next" type="button" class="mt-2 text-sm font-semibold text-accent underline underline-offset-4 hover:text-ink" @click="goToNext">
                 Prochain créneau disponible : {{ formatDay(availability.next.start) }} à {{ formatTime(availability.next.start) }}

@@ -6,6 +6,8 @@ import serviceRoutes from "./routes/serviceRoutes.js";
 import vehicleRoutes from "./routes/vehicleRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import availabilityRoutes from "./routes/availabilityRoutes.js";
+import garageRoutes from "./routes/garageRoutes.js";
+import timeOffRoutes from "./routes/timeOffRoutes.js";
 import { errorHandler, notFound } from "./middlewares/errorHandler.js";
 
 const app = express();
@@ -23,6 +25,8 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/vehicles", vehicleRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/availability", availabilityRoutes);
+app.use("/api/garage", garageRoutes);
+app.use("/api/timeoff", timeOffRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

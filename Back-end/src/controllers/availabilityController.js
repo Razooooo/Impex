@@ -18,6 +18,7 @@ export const getAvailability = async (req, res) => {
 		success: true,
 		date,
 		closed: day.closed,
+		reason: day.reason,
 		durationMinutes: service.estimatedMinutes,
 		slots: day.slots,
 		next,

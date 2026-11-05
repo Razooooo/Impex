@@ -48,6 +48,8 @@ Application web de prise de rendez-vous pour **IMPEX**, garage spécialisé Land
 | Espace mécanicien : interventions du jour, démarrer / terminer, notes | Terminé |
 | Espace client : véhicules, rendez-vous, annulation | Terminé    |
 | Créneaux réellement disponibles (mécaniciens, durée, rendez-vous déjà pris) | Terminé |
+| Absences des mécaniciens et fermetures du garage (jours fériés, inventaire) | Terminé |
+| Espace admin : calendrier (vue jour par mécanicien, vue semaine) | Terminé |
 | Choix guidé de la prestation (zones, « Je ne sais pas » avec symptômes) | Terminé |
 
 ## Démarrage rapide
@@ -134,12 +136,14 @@ Les comptes clients se créent depuis le site (« Connexion » puis « Créer un
 - **User** : prénom, nom, email, mot de passe haché, téléphone, rôle.
 - **Vehicle** : propriétaire, modèle Land Rover, année, plaque, VIN, motorisation, kilométrage.
 - **Service** : nom, catégorie (zone), durée estimée par défaut, actif ou non, et `forUnknownProblem` pour le service « Diagnostic général » proposé au client qui ne sait pas ce qui ne va pas.
+- **TimeOff** : fermeture du garage ou absence d'un mécanicien (dates de début et de fin incluses, motif).
 - **Appointment** : client, véhicule, service, date, statut, mécanicien assigné, temps estimé, notes du client (dont les symptômes cochés) et du mécanicien.
 
 Statuts d'un rendez-vous : `pending` → `confirmed` → `in_progress` → `done` (ou `cancelled`).
 
 Règles métier :
 - Un créneau n'est proposé (et accepté à la réservation) que si l'intervention se termine avant la fermeture et qu'il reste au moins un mécanicien libre pendant toute sa durée. Les demandes encore en attente comptent comme occupant un mécanicien, pour ne jamais promettre plus que ce que le garage peut tenir. Le serveur revérifie le créneau à la création du rendez-vous.
+- Une **fermeture du garage** ou l'**absence d'un mécanicien** (journées entières, motif facultatif) retire aussitôt les créneaux concernés : un mécanicien absent n'est plus compté comme disponible, un jour de fermeture n'est plus réservable (le motif est affiché au client) et assigner un mécanicien absent est refusé. Les rendez-vous déjà pris sur la période ne sont pas annulés automatiquement : l'admin en reçoit la liste pour les réassigner ou les refuser.
 - Les horaires d'ouverture, le pas entre deux créneaux (30 min), le délai minimum avant un rendez-vous (1 h) et le fuseau du garage (Antananarivo, UTC+3) sont définis dans `Back-end/src/config/garage.js`. Toutes les heures s'affichent à l'heure du garage, quel que soit le fuseau du navigateur.
 - Assigner un mécanicien passe un rendez-vous `pending` en `confirmed`.
 - L'assignation est refusée si le mécanicien a déjà une intervention (confirmée ou en cours) qui chevauche le créneau, durée estimée comprise.
@@ -162,6 +166,10 @@ Toutes les routes sont préfixées par `/api`. Les routes protégées attendent 
 | POST    | `/services`                    | admin                                    |
 | PATCH   | `/services/:id`                | admin                                    |
 | GET     | `/availability?date=&serviceId=` | client (créneaux du jour pour une prestation, et prochain créneau libre si le jour est complet ou fermé) |
+| GET     | `/garage`                      | public (horaires d'ouverture, pas des créneaux, fuseau) |
+| GET     | `/timeoff`                     | admin (absences et fermetures en cours ou à venir) |
+| POST    | `/timeoff`                     | admin (déclare une absence ou une fermeture ; renvoie les rendez-vous déjà pris sur la période) |
+| DELETE  | `/timeoff/:id`                 | admin                                    |
 | GET     | `/vehicles/models`             | client (liste des modèles acceptés)      |
 | GET     | `/vehicles`                    | client                                   |
 | POST    | `/vehicles`                    | client                                   |
@@ -232,12 +240,13 @@ La base n'apparaît qu'après la première écriture (lancer le seed ou créer u
 
 **Priorité 2 : planification côté garage**
 - [x] Créneaux réellement disponibles (durée de la prestation, mécaniciens libres, demandes en attente comprises)
-- [ ] Congés et absences des mécaniciens (aujourd'hui, tous les mécaniciens comptent comme présents tous les jours ouverts)
-- [ ] Jours fériés et fermetures exceptionnelles du garage
+- [x] Congés et absences des mécaniciens, jours fériés et fermetures exceptionnelles du garage
+- [ ] Absences sur une demi-journée ou quelques heures (aujourd'hui, une absence couvre des journées entières)
+- [ ] Reprogrammer un rendez-vous (changer sa date) depuis l'espace admin, par exemple quand une fermeture le touche
 - [x] Éviter les chevauchements d'un même mécanicien (refusés à l'assignation)
 - [x] Gestion des services et du personnel depuis l'espace admin
 - [x] Espace mécanicien dans le même style (interventions du jour, notes)
-- [ ] Vue calendrier du planning admin
+- [x] Vue calendrier du planning admin
 - [ ] Désactiver ou supprimer un membre de l'équipe
 - [ ] Temps réel passé par rapport au temps estimé
 

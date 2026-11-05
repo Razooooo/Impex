@@ -1,41 +1,37 @@
-import { MIN_LEAD_MINUTES, OPENING_HOURS, SLOT_MINUTES, UTC_OFFSET_MINUTES } from "../config/garage.js";
+import { MIN_LEAD_MINUTES, OPENING_HOURS, SLOT_MINUTES } from "../config/garage.js";
 import Appointment from "../models/Appointment.js";
+import TimeOff from "../models/TimeOff.js";
 import User from "../models/User.js";
+import { addDays, at, parseDate, toGarageDate } from "./garageTime.js";
 
 const MIN = 60 * 1000;
 const ACTIVE_STATUSES = ["pending", "confirmed", "in_progress"];
-
-// "2026-11-06" -> { y, mo, d, dow } ou null si la date n'existe pas
-function parseDate(str) {
-	const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str));
-	if (!m) return null;
-	const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
-	const date = new Date(Date.UTC(y, mo - 1, d));
-	if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null;
-	return { y, mo, d, dow: date.getUTCDay() };
-}
-
-// Instant réel (en ms) correspondant à « ce jour-là, à telle heure, au Madagascar »
-const at = (p, hours) => Date.UTC(p.y, p.mo - 1, p.d) + hours * 60 * MIN - UTC_OFFSET_MINUTES * MIN;
-
-// Date du jour dans le fuseau du garage, au format "2026-11-06"
-export const toGarageDate = (date) => new Date(date.getTime() + UTC_OFFSET_MINUTES * MIN).toISOString().slice(0, 10);
-
-const addDays = (str, n) => {
-	const p = parseDate(str);
-	return new Date(Date.UTC(p.y, p.mo - 1, p.d + n)).toISOString().slice(0, 10);
-};
 
 const label = (hours) => {
 	const mins = Math.round(hours * 60);
 	return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 };
 
+// Fermetures et absences qui couvrent une journée
+export const timeOffsOn = (dateStr) => TimeOff.find({ startDate: { $lte: dateStr }, endDate: { $gte: dateStr } });
+
+// Raison pour laquelle ce mécanicien ne peut pas travailler ce jour-là, ou null.
+// { type: "garage" | "mechanic", reason }
+export async function findUnavailability(mechanicId, dateStr) {
+	const off = await TimeOff.findOne({
+		startDate: { $lte: dateStr },
+		endDate: { $gte: dateStr },
+		$or: [{ scope: "garage" }, { scope: "mechanic", mechanic: mechanicId }],
+	});
+	return off ? { type: off.scope, reason: off.reason || "" } : null;
+}
+
 /**
  * Créneaux d'une journée pour une prestation de `duration` minutes.
  * Un créneau est disponible si :
+ *  - le garage est ouvert ce jour-là (ni jour de fermeture, ni jour férié déclaré) ;
  *  - l'intervention se termine avant la fermeture, et le créneau n'est pas déjà passé (délai minimum compris) ;
- *  - il reste au moins un mécanicien libre, en comptant aussi les demandes encore en attente
+ *  - il reste au moins un mécanicien présent et libre, en comptant aussi les demandes encore en attente
  *    (elles n'ont pas de mécanicien mais en occuperont un), pour éviter de promettre plus que ce que le garage peut faire.
  * Retourne null si la date est invalide.
  */
@@ -44,12 +40,20 @@ export async function getDayAvailability(dateStr, duration, excludeId = null) {
 	if (!p) return null;
 
 	const hours = OPENING_HOURS[p.dow];
-	if (!hours) return { closed: true, slots: [] };
+	if (!hours) return { closed: true, reason: "", slots: [] };
+
+	const timeOffs = await timeOffsOn(dateStr);
+	const closure = timeOffs.find((t) => t.scope === "garage");
+	if (closure) return { closed: true, reason: closure.reason || "", slots: [] };
+
+	const absent = new Set(timeOffs.filter((t) => t.scope === "mechanic").map((t) => String(t.mechanic)));
 
 	const openMs = at(p, hours[0]);
 	const closeMs = at(p, hours[1]);
 
-	const mechanicIds = (await User.find({ role: "mecano" }).select("_id")).map((m) => String(m._id));
+	const mechanicIds = (await User.find({ role: "mecano" }).select("_id"))
+		.map((m) => String(m._id))
+		.filter((id) => !absent.has(id));
 	const appointments = await Appointment.find({
 		status: { $in: ACTIVE_STATUSES },
 		scheduledAt: { $lt: new Date(closeMs), $gte: new Date(openMs - 24 * 60 * MIN) },
@@ -79,7 +83,7 @@ export async function getDayAvailability(dateStr, duration, excludeId = null) {
 		}
 		slots.push({ time: label(t), start: new Date(start).toISOString(), available });
 	}
-	return { closed: false, slots };
+	return { closed: false, reason: "", slots };
 }
 
 // Premier créneau libre dans les `days` jours qui suivent `fromDateStr`, ou null

@@ -3,7 +3,8 @@ import Service from "../models/Service.js";
 import User from "../models/User.js";
 import Vehicle from "../models/Vehicle.js";
 import { APPOINTMENT_STATUSES } from "../models/Appointment.js";
-import { isSlotAvailable } from "../utils/availability.js";
+import { findUnavailability, isSlotAvailable } from "../utils/availability.js";
+import { toGarageDate } from "../utils/garageTime.js";
 
 const populate = [
 	{ path: "customer", select: "firstName lastName email phone" },
@@ -91,6 +92,18 @@ export const assignAppointment = async (req, res) => {
 	if (targetId) {
 		const mechanic = await User.findOne({ _id: targetId, role: "mecano" });
 		if (!mechanic) return res.status(404).json({ success: false, message: "Mécanicien introuvable." });
+
+		const off = await findUnavailability(mechanic._id, toGarageDate(appointment.scheduledAt));
+		if (off) {
+			const why = off.reason ? ` (${off.reason})` : "";
+			return res.status(409).json({
+				success: false,
+				message:
+					off.type === "garage"
+						? `Le garage est fermé ce jour-là${why}.`
+						: `${mechanic.firstName} ${mechanic.lastName} est absent ce jour-là${why}. Choisissez un autre mécanicien.`,
+			});
+		}
 
 		const conflict = await findConflict(mechanic._id, appointment.scheduledAt, minutes, appointment._id);
 		if (conflict) {

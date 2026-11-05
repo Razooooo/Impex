@@ -46,6 +46,15 @@ export const formatDayMonth = (date) => fmt(date, { day: "numeric", month: "shor
 export const dayOfMonth = (date) => Number(fmt(date, { day: "numeric" }))
 export const monthShort = (date) => fmt(date, { month: "short" }).replace(".", "")
 
+// Minutes écoulées depuis minuit, à l'heure du garage (9h30 -> 570)
+export function garageMinutes(date) {
+  const [h, m] = new Intl.DateTimeFormat("fr-FR", { timeZone: GARAGE_TZ, hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .format(new Date(date))
+    .split(":")
+    .map(Number)
+  return h * 60 + m
+}
+
 // "2026-11-04" : la date du jour (ou de `date`) à l'heure du garage. Se compare directement comme du texte.
 export const toDateInput = (date = new Date()) =>
   new Intl.DateTimeFormat("en-CA", { timeZone: GARAGE_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date))
