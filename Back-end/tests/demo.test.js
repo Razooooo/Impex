@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import app from "../src/app.js";
 import Appointment from "../src/models/Appointment.js";
@@ -90,6 +91,21 @@ describe("API en mode démo", () => {
 		process.env.DEMO_MODE = "false";
 		assert.equal((await call("POST", "/auth/demo", null, { role: "admin" })).status, 404);
 		assert.equal((await call("GET", "/garage")).body.demo, false);
+	});
+
+	it("les sessions de démo durent 4 heures, les autres 7 jours", async () => {
+		const lifetime = (token) => {
+			const { exp, iat } = jwt.decode(token);
+			return (exp - iat) / 3600;
+		};
+		const demo = await call("POST", "/auth/demo", null, { role: "client" });
+		assert.equal(lifetime(demo.body.token), 4);
+		const register = await call("POST", "/auth/register", null, { firstName: "V", lastName: "V", email: "duree@t.local", password: "Motdepasse1" });
+		assert.equal(lifetime(register.body.token), 4);
+
+		process.env.DEMO_MODE = "false";
+		const login = await call("POST", "/auth/login", null, { email: "duree@t.local", password: "Motdepasse1" });
+		assert.equal(lifetime(login.body.token), 24 * 7);
 	});
 
 	it("annonce le mode démo au front", async () => {

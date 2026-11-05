@@ -5,8 +5,9 @@ import User from "../models/User.js";
 import { demoEmailFor, isDemo, isSharedDemoAccount } from "../utils/demo.js";
 import { sendPasswordResetEmail } from "../utils/mailer.js";
 
+// Sessions de 7 jours, ou de 4 heures sur le site de démonstration public
 const signToken = (user) =>
-	jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: "7d" });
+	jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: isDemo() ? "4h" : "7d" });
 
 const publicUser = (user) => ({
 	id: user._id,

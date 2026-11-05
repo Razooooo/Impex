@@ -1,4 +1,5 @@
 import axios from "axios"
+import { readSession } from "@/lib/session"
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
@@ -6,7 +7,7 @@ const http = axios.create({
 
 // Ajoute le token JWT à chaque requête
 http.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token")
+  const token = readSession("token")
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -19,7 +20,7 @@ http.interceptors.response.use(
   (error) => {
     error.message = error.response?.data?.message || "Erreur réseau"
     const isLoginRequest = error.config?.url === "/auth/login"
-    if (error.response?.status === 401 && localStorage.getItem("token") && !isLoginRequest) {
+    if (error.response?.status === 401 && readSession("token") && !isLoginRequest) {
       window.dispatchEvent(new CustomEvent("session-expired", { detail: error.message }))
     }
     return Promise.reject(error)

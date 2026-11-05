@@ -306,6 +306,7 @@ Avec `DEMO_MODE=true`, l'API se comporte comme un site de présentation :
 - un bandeau annonce que les données sont fictives
 - la fenêtre de connexion propose « Visiter la démo sans compte » (client, garage, mécano)
 - « mot de passe oublié » affiche le lien à l'écran, car aucun email ne part
+- les sessions durent 4 heures (7 jours hors démo) et sont gardées dans l'onglet : fermer l'onglet déconnecte
 - les comptes de démonstration (équipe et client) sont partagés : leur mot de passe, leur adresse et leur état ne peuvent pas être modifiés
 - les données sont remises à zéro au plus une fois par jour : comptes ajoutés, véhicules, rendez-vous, services et absences sont remplacés par un jeu d'exemple
 

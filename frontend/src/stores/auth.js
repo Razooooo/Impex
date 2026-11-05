@@ -1,10 +1,12 @@
 import { defineStore } from "pinia"
 import { api } from "@/lib/api"
+import { clearSession, isTemporarySession, readSession, writeSession } from "@/lib/session"
+import { useUiStore } from "@/stores/ui"
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
-    user: JSON.parse(localStorage.getItem("user") || "null"),
-    token: localStorage.getItem("token"),
+    user: JSON.parse(readSession("user") || "null"),
+    token: readSession("token"),
   }),
   getters: {
     isLoggedIn: (s) => !!s.token,
@@ -15,8 +17,12 @@ export const useAuthStore = defineStore("auth", {
     setSession({ token, user }) {
       this.token = token
       this.user = user
-      localStorage.setItem("token", token)
-      localStorage.setItem("user", JSON.stringify(user))
+      // Démo : la session reste dans l'onglet. Ailleurs : dans le navigateur.
+      writeSession(token, user, useUiStore().demo || isTemporarySession())
+    },
+    // Le site est en démo : une session déjà enregistrée dans le navigateur passe dans l'onglet
+    keepInTab() {
+      if (this.token && !isTemporarySession()) writeSession(this.token, this.user, true)
     },
     async login(email, password) {
       this.setSession(await api("/auth/login", { method: "POST", body: { email, password } }))
@@ -37,8 +43,7 @@ export const useAuthStore = defineStore("auth", {
     logout() {
       this.token = null
       this.user = null
-      localStorage.removeItem("token")
-      localStorage.removeItem("user")
+      clearSession()
     },
   },
 })

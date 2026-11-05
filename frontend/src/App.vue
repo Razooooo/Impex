@@ -48,7 +48,12 @@ function onSessionExpired(event) {
 }
 onMounted(() => {
   window.addEventListener("session-expired", onSessionExpired)
-  api("/garage").then((g) => (ui.demo = !!g.demo)).catch(() => {})
+  api("/garage")
+    .then((g) => {
+      ui.demo = !!g.demo
+      if (ui.demo) auth.keepInTab()
+    })
+    .catch(() => {})
 })
 onBeforeUnmount(() => window.removeEventListener("session-expired", onSessionExpired))
 </script>
